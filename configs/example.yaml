@@ -1,0 +1,50 @@
+# Configuración de ejemplo de un experimento.
+# Los valores numéricos son ilustrativos: muestran la forma del archivo, no parámetros calibrados.
+# Los nombres de modelos, variables, explicadores, métricas y políticas de umbral deben coincidir con
+# los registrados en el código (ver docs/architecture.md).
+
+experiment:
+  name: example
+  seed: 42                     # única semilla del experimento; se propaga a datos, particiones y modelos
+
+dataset:                       # parámetros del generador de la red sintética
+  n_companies: 2000
+  shell_fraction: 0.05
+
+splits:
+  n_splits: 5                  # k-fold estratificado sobre nodos
+  val_size: 0.2                # fracción de los nodos fuera de prueba reservada para validación
+
+threshold:
+  strategy: max_f1             # alternativas: fixed (requiere value)
+  # value: 0.5
+
+evaluation:
+  metrics: [auc_pr, auc_roc, f1, precision, recall, fpr]
+  precision_at_k: [50, 100]
+
+groups:
+  G1:
+    features: [transactional]
+    explainer: shap
+    models:
+      - name: random_forest
+        params: {n_estimators: 500, class_weight: balanced}
+      - name: xgboost
+        params: {n_estimators: 500, learning_rate: 0.05}
+  G2:
+    features: [transactional, structural]
+    explainer: shap
+    models:
+      - name: random_forest
+        params: {n_estimators: 500, class_weight: balanced}
+      - name: xgboost
+        params: {n_estimators: 500, learning_rate: 0.05}
+  G3:
+    features: [transactional]  # variables de nodo de la vista de grafo
+    explainer: gnn_explainer
+    models:
+      - name: graphsage
+        params: {hidden_channels: 64, num_layers: 2, epochs: 200, patience: 20}
+      - name: gat
+        params: {hidden_channels: 64, heads: 4, epochs: 200, patience: 20}
