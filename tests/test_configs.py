@@ -13,7 +13,15 @@ from efd.explainability import EXPLAINERS
 from efd.features import FEATURE_BUILDERS
 from efd.models import available_detectors
 
-CONFIG_FILES = sorted((Path(__file__).resolve().parents[1] / "configs").glob("*.yaml"))
+CONFIGS_DIR = Path(__file__).resolve().parents[1] / "configs"
+
+
+def _is_experiment_config(path: Path) -> bool:
+    """Las configuraciones de experimento tienen la sección ``experiment``; el generador tiene la suya."""
+    return "experiment" in yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+CONFIG_FILES = sorted(path for path in CONFIGS_DIR.glob("*.yaml") if _is_experiment_config(path))
 
 
 @pytest.fixture(params=CONFIG_FILES, ids=lambda path: path.name)

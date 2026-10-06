@@ -69,6 +69,18 @@ Las GNN trabajan en modo transductivo: el grafo completo se propaga en el entren
 etiquetas se restringen a los nodos de entrenamiento. Para mantener la igualdad de condiciones, las
 métricas estructurales de G2 se calculan también sobre el grafo completo, que no contiene etiquetas.
 
+#### Pendiente: partición temporal y entrenamiento inductivo estricto
+
+Para evaluar con el conjunto de datos Elliptic se necesita además:
+
+- **Partición temporal:** los nodos se asignan a entrenamiento, validación y prueba según el período al
+  que pertenecen, en lugar de un k-fold estratificado.
+- **Entrenamiento inductivo estricto:** el subgrafo de entrenamiento excluye los nodos y aristas del
+  período de prueba, de modo que el modelo no ve la estructura que luego evalúa. Las métricas
+  estructurales de G2 deben calcularse con la misma restricción.
+
+Ninguna de las dos está implementada todavía.
+
 ### Interfaz común de detectores
 
 `BaseDetector` (`src/efd/models/base.py`) define `fit(data, train_idx, val_idx)` y
@@ -114,9 +126,15 @@ anteriores quedan disponibles para comparación.
 
 ## Reproducibilidad
 
-- La semilla se declara una sola vez (`experiment.seed` en el YAML) y se propaga al generador, a las
-  particiones, a los modelos, a los explicadores y, mediante `src/efd/reproducibility.py`, a `random`,
-  NumPy y PyTorch.
+- Hay dos semillas, cada una declarada una sola vez:
+  - `seed` en `configs/generator.yaml` identifica el escenario de datos. El generador crea con ella un
+    único `numpy.random.Generator` y lo pasa explícitamente a cada etapa; la semilla y la huella de la
+    configuración quedan en `metadata.json`.
+  - `experiment.seed` en la configuración del experimento se propaga a las particiones, a los modelos,
+    a los explicadores y, mediante `src/efd/reproducibility.py`, a `random`, NumPy y PyTorch.
+
+  Separarlas permite repetir un experimento con otra semilla de particiones o de modelos sobre el mismo
+  escenario de datos, y al revés.
 - Las particiones dependen solo de etiquetas y semilla; misma semilla, mismos índices (lo verifican las
   pruebas).
 - Las versiones de las librerías se guardan con cada ejecución, porque un mismo código puede producir
@@ -184,10 +202,12 @@ componente con `create_detector`, `create_explainer`, `create_feature_builder` o
 
 ### DRY — Una sola fuente de verdad
 
+- Esquema de las tablas de la red sintética: `src/efd/network.py`.
 - Métricas: `src/efd/evaluation/metrics.py`.
 - Particiones: `src/efd/evaluation/splits.py`.
 - Regla de decisión con umbral: `binarize` en `src/efd/evaluation/threshold.py`.
-- Semilla: `experiment.seed` en la configuración, aplicada por `src/efd/reproducibility.py`.
+- Semillas: `seed` en `configs/generator.yaml` para los datos y `experiment.seed` para particiones y
+  modelos, aplicada por `src/efd/reproducibility.py`.
 - Mecánica de registro: la clase `Registry` en `src/efd/registry.py`, compartida por todos los registros.
 
 ### KISS — Lo mínimo necesario

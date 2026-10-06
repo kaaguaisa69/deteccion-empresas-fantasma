@@ -7,7 +7,7 @@ from typing import ClassVar
 
 import pandas as pd
 
-from efd.generation.network import InvoiceNetwork
+from efd.network import InvoiceNetwork
 
 
 class BaseFeatureBuilder(ABC):
@@ -21,5 +21,5 @@ class BaseFeatureBuilder(ABC):
 
     @abstractmethod
     def build(self, network: InvoiceNetwork) -> pd.DataFrame:
-        """Devuelve una fila por empresa, indexada por ``company_id`` en el orden de
-        ``network.companies``, y una columna por variable."""
+        """Devuelve una fila por empresa, indexada por ``taxpayer_id`` en el orden de
+        ``network.taxpayers``, y una columna por variable."""

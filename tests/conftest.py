@@ -13,7 +13,7 @@ from efd.data import ExperimentData
 def small_frame() -> tuple[pd.DataFrame, pd.Series]:
     """Veinte empresas, cinco de ellas fantasmas, con dos variables numéricas."""
     rng = np.random.default_rng(0)
-    ids = pd.Index([f"E{i:03d}" for i in range(20)], name="company_id")
+    ids = pd.Index([f"E{i:03d}" for i in range(20)], name="taxpayer_id")
     features = pd.DataFrame(
         {"amount_total": rng.uniform(0, 100, 20), "degree": rng.integers(0, 10, 20)}, index=ids
     )

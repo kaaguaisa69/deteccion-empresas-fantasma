@@ -1,0 +1,160 @@
+# Escenario base del generador de la red sintética de facturación electrónica.
+# Prevalencia 1 %, camuflaje medio, semilla 42 (docs/generator_design.md).
+#
+# Todo valor marcado "supuesto de diseño" no proviene de una fuente. Los que además indican
+# (generator_design.md) son decisiones del documento de diseño. Las distribuciones de las fantasmas por
+# provincia y sector son provisionales: se reemplazarán con el catastro público del SRI.
+
+seed: 42                                  # supuesto de diseño (generator_design.md)
+output_root: data/synthetic
+
+period:                                   # supuesto de diseño (generator_design.md)
+  start: 2025-01-01
+  end: 2025-12-31
+
+population:
+  n_taxpayers: 40000                      # supuesto de diseño (generator_design.md)
+  prevalence: 0.01                        # supuesto de diseño (generator_design.md)
+  taxpayer_types:                         # supuesto de diseño
+    sociedad: 0.25
+    persona_natural: 0.75
+  sizes_by_type:                          # supuesto de diseño
+    sociedad: {micro: 0.55, pequena: 0.25, mediana: 0.13, grande: 0.07}
+    persona_natural: {micro: 0.93, pequena: 0.06, mediana: 0.01, grande: 0.0}
+  sectors:                                # supuesto de diseño (secciones CIIU agregadas)
+    comercio: 0.35
+    servicios_profesionales: 0.15
+    otros_servicios: 0.12
+    manufactura: 0.10
+    transporte: 0.10
+    agricultura: 0.08
+    alojamiento_comidas: 0.06
+    construccion: 0.04
+  provinces:                              # supuesto de diseño (las 24 provincias del Ecuador)
+    Guayas: 0.25
+    Pichincha: 0.24
+    Manabí: 0.07
+    Azuay: 0.06
+    El Oro: 0.04
+    Los Ríos: 0.04
+    Tungurahua: 0.04
+    Imbabura: 0.03
+    Loja: 0.03
+    Chimborazo: 0.03
+    Santo Domingo de los Tsáchilas: 0.03
+    Cotopaxi: 0.02
+    Esmeraldas: 0.02
+    Santa Elena: 0.02
+    Cañar: 0.015
+    Sucumbíos: 0.01
+    Orellana: 0.01
+    Carchi: 0.01
+    Bolívar: 0.01
+    Napo: 0.005
+    Pastaza: 0.005
+    Morona Santiago: 0.005
+    Zamora Chinchipe: 0.005
+    Galápagos: 0.005
+  mean_age_years: 8                       # supuesto de diseño: antigüedad exponencial
+  max_age_years: 40                       # supuesto de diseño
+  in_period_fraction: 0.08                # supuesto de diseño: legítimos que inician en el período
+  legit_group_fraction: 0.10              # supuesto de diseño: sociedades legítimas en grupos empresariales
+  legit_group_size: [2, 5]                # supuesto de diseño
+
+shells:
+  # Restricción de la fuente: las fantasmas se concentran en Guayas, Pichincha y El Oro (reporte
+  # periodístico citado en la tesis, sin porcentajes). Los porcentajes son supuesto de diseño.
+  provinces:                              # supuesto de diseño
+    Guayas: 0.40
+    Pichincha: 0.25
+    El Oro: 0.15
+    Manabí: 0.05
+    Los Ríos: 0.04
+    Azuay: 0.03
+    Santo Domingo de los Tsáchilas: 0.03
+    Santa Elena: 0.03
+    Esmeraldas: 0.02
+  sectors:                                # supuesto de diseño (pendiente: catastro del SRI)
+    comercio: 0.40
+    servicios_profesionales: 0.25
+    construccion: 0.15
+    transporte: 0.10
+    manufactura: 0.10
+  sizes: {micro: 0.85, pequena: 0.15}     # supuesto de diseño
+  earliest_start: 2023-01-01              # supuesto de diseño: P2, P3 y P4 inician desde esta fecha
+  min_active_days: 90                     # supuesto de diseño: días mínimos de actividad en el período
+
+market:
+  invoices_per_taxpayer: 50               # supuesto de diseño (generator_design.md)
+  # Proveedores por comprador: 1 + Poisson(media según tamaño).
+  extra_suppliers_mean: {micro: 1.5, pequena: 3, mediana: 6, grande: 12}   # supuesto de diseño
+  # Atractivo inicial según tamaño en la conexión preferencial.
+  attractiveness: {micro: 1, pequena: 2, mediana: 4, grande: 8}            # supuesto de diseño
+  # Probabilidad de elegir proveedor por atractivo y no por clientes acumulados; valores más altos
+  # aplanan la cola de la distribución de grado. No se ajustó para cumplir la validación 6 (grado
+  # máximo > 10 × mediana): con 2 000 contribuyentes y semillas 42 y 7 se cumple en todo el rango
+  # probado, de 0,3 (cociente ≈ 100) a 1,0 (cociente ≈ 21).
+  uniform_choice_probability: 0.3         # supuesto de diseño
+  purchase_weight: {micro: 1, pequena: 3, mediana: 10, grande: 30}         # supuesto de diseño
+  relation_intensity_sigma: 1.0           # supuesto de diseño: dispersión de facturas por relación
+  sector_matrix:                          # supuesto de diseño: fila = sector comprador, columna = proveedor
+    agricultura: {comercio: 0.50, manufactura: 0.20, transporte: 0.15, agricultura: 0.10, servicios_profesionales: 0.05}
+    manufactura: {manufactura: 0.30, comercio: 0.30, agricultura: 0.15, transporte: 0.15, servicios_profesionales: 0.10}
+    construccion: {manufactura: 0.40, comercio: 0.40, transporte: 0.10, servicios_profesionales: 0.10}
+    comercio: {manufactura: 0.40, comercio: 0.35, agricultura: 0.10, transporte: 0.10, servicios_profesionales: 0.05}
+    transporte: {comercio: 0.50, manufactura: 0.20, servicios_profesionales: 0.15, otros_servicios: 0.15}
+    alojamiento_comidas: {comercio: 0.45, agricultura: 0.25, manufactura: 0.20, otros_servicios: 0.10}
+    servicios_profesionales: {comercio: 0.40, servicios_profesionales: 0.30, otros_servicios: 0.20, transporte: 0.10}
+    otros_servicios: {comercio: 0.50, servicios_profesionales: 0.20, otros_servicios: 0.20, manufactura: 0.10}
+  # Subtotal lognormal: media del logaritmo según el tamaño del comprador.
+  amount_log_mean: {micro: 5.0, pequena: 6.0, mediana: 7.0, grande: 8.0}  # supuesto de diseño
+  amount_log_sigma: 1.0                   # supuesto de diseño
+  round_amount_fraction: 0.05             # supuesto de diseño: facturas legítimas con montos redondos
+  round_multiples: [100, 500, 1000]       # supuesto de diseño
+  vat_rate: 0.15                          # tarifa general de IVA (generator_design.md)
+  zero_rated_fraction: 0.25               # supuesto de diseño: facturas con bienes de tarifa 0 %
+  # Pesos de enero a diciembre.
+  monthly_seasonality: [0.90, 0.85, 0.95, 0.95, 1.00, 0.95, 1.00, 1.00, 0.95, 1.00, 1.05, 1.40]  # supuesto de diseño
+  reciprocity_fraction: 0.05              # supuesto de diseño: relaciones con comercio en ambos sentidos
+  group_trade_probability: 0.5            # supuesto de diseño: comercio entre empresas de un grupo
+  cycles_per_1000: 2                      # supuesto de diseño: ciclos legítimos por cada 1 000 legítimos
+  cycle_length: [3, 6]                    # supuesto de diseño
+
+patterns:
+  isolated_emitter:                       # P1
+    proportion: 0.40                      # supuesto de diseño (generator_design.md)
+    life_months: [3, 9]                   # supuesto de diseño (generator_design.md)
+    beneficiaries: [10, 40]               # supuesto de diseño
+    invoices_per_beneficiary: [1, 3]      # supuesto de diseño
+    amount_log_mean: 8.0                  # supuesto de diseño
+    amount_log_sigma: 0.8                 # supuesto de diseño
+    round_multiples: [100, 500, 1000]     # supuesto de diseño
+  ring:                                   # P2
+    proportion: 0.20                      # supuesto de diseño (generator_design.md)
+    group_size: [3, 6]                    # supuesto de diseño (generator_design.md)
+    rounds: [4, 12]                       # supuesto de diseño
+    amount_log_mean: 8.5                  # supuesto de diseño
+    amount_log_sigma: 0.7                 # supuesto de diseño
+    amount_jitter: 0.05                   # supuesto de diseño
+    beneficiaries_per_member: [1, 3]      # supuesto de diseño
+    invoices_per_beneficiary: [1, 2]      # supuesto de diseño
+  chain:                                  # P3
+    proportion: 0.20                      # supuesto de diseño (generator_design.md)
+    hops: [2, 4]                          # supuesto de diseño (generator_design.md)
+    operations: [3, 10]                   # supuesto de diseño
+    amount_log_mean: 8.5                  # supuesto de diseño
+    amount_log_sigma: 0.7                 # supuesto de diseño
+    margin: 0.03                          # supuesto de diseño
+    max_gap_days: 5                       # supuesto de diseño
+  shared_representative:                  # P4
+    proportion: 0.20                      # supuesto de diseño (generator_design.md)
+    group_size: [3, 5]                    # supuesto de diseño (generator_design.md)
+    shared_beneficiaries: [5, 15]         # supuesto de diseño
+    beneficiaries_per_member: [2, 5]      # supuesto de diseño
+    invoices_per_beneficiary: [1, 3]      # supuesto de diseño
+    suppliers_per_member: [1, 3]          # supuesto de diseño
+    invoices_per_supplier: [1, 3]         # supuesto de diseño
+
+camouflage:
+  level: medio                            # supuesto de diseño (generator_design.md)
+  levels: {bajo: 0.10, medio: 0.30, alto: 0.50}   # supuesto de diseño (generator_design.md)

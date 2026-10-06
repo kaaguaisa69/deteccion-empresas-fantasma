@@ -22,5 +22,5 @@ class StructuralMetricsCalculator:
         self.seed = seed
 
     def compute(self, graph: nx.DiGraph) -> pd.DataFrame:
-        """Devuelve una fila por nodo (índice = ``company_id``) y una columna por métrica."""
+        """Devuelve una fila por nodo (índice = ``taxpayer_id``) y una columna por métrica."""
         raise NotImplementedError

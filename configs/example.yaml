@@ -5,11 +5,10 @@
 
 experiment:
   name: example
-  seed: 42                     # única semilla del experimento; se propaga a datos, particiones y modelos
+  seed: 42                     # semilla de particiones y modelos; la de los datos está en generator.yaml
 
-dataset:                       # parámetros del generador de la red sintética
-  n_companies: 2000
-  shell_fraction: 0.05
+dataset:
+  generator_config: configs/generator.yaml   # escenario que produce python -m efd.generation
 
 splits:
   n_splits: 5                  # k-fold estratificado sobre nodos
@@ -21,7 +20,7 @@ threshold:
 
 evaluation:
   metrics: [auc_pr, auc_roc, f1, precision, recall, fpr]
-  precision_at_k: [50, 100]
+  precision_at_k: [100, 200, 400]
 
 groups:
   G1:

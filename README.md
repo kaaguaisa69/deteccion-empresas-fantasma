@@ -32,6 +32,7 @@ configs/              parámetros de dataset, modelos y experimentos (YAML)
 data/                 datos generados (excluido de git)
 src/efd/
   data.py             ExperimentData: vista tabular y vista de grafo alineadas por nodo
+  network.py          InvoiceNetwork: tablas de contribuyentes, facturas y representantes
   registry.py         registro genérico de componentes por nombre
   reproducibility.py  control de semillas
   generation/         generador de la red sintética de facturación
@@ -44,11 +45,12 @@ src/efd/
 results/runs/         una carpeta por ejecución (excluida de git)
 tests/                pruebas con pytest
 docs/architecture.md  decisiones de diseño y su justificación
+docs/generator_design.md  diseño de la red sintética de facturación
 ```
 
 ## Instalación
 
-Requiere Python 3.11 o superior.
+Requiere Python 3.11 o superior. El proyecto se probó con Python 3.13.
 
 ```bash
 python -m venv .venv
@@ -68,6 +70,19 @@ Ejecutar las pruebas:
 pytest
 ```
 
+Generar un escenario de la red sintética (por defecto, el escenario base: 40 000 contribuyentes,
+prevalencia 1 %, camuflaje medio, semilla 42):
+
+```bash
+python -m efd.generation --config configs/generator.yaml
+```
+
+El escenario se escribe en `data/synthetic/<escenario>/` (`taxpayers.parquet`, `invoices.parquet`,
+`representatives.parquet` y `metadata.json`). Antes de escribirlo, el generador ejecuta las validaciones
+de realismo e integridad de [docs/generator_design.md](docs/generator_design.md) y se detiene si alguna
+falla. Los valores de `configs/generator.yaml` que no provienen de una fuente están marcados como
+"supuesto de diseño".
+
 Ejecutar un experimento a partir de una configuración:
 
 ```bash
@@ -77,17 +92,17 @@ python -m efd.experiments.runner --config configs/example.yaml
 Cada ejecución se guarda en `results/runs/<AAAAMMDD-HHMMSS>_<experimento>/` con la configuración usada,
 la semilla, las particiones, las métricas en JSON y las versiones de las librerías.
 
-`configs/example.yaml` documenta la forma de una configuración: semilla, parámetros del generador,
-particiones, política de umbral, métricas y, para cada grupo, sus variables, modelos e explicador. Los
+`configs/example.yaml` documenta la forma de una configuración: semilla, configuración del generador
+que produce los datos, particiones, política de umbral, métricas y, para cada grupo, sus variables, modelos e explicador. Los
 nombres de componentes que aparecen en el archivo son los registrados en el código.
 
 ### Estado de la implementación
 
-Implementado y probado: `ExperimentData`, `BaseDetector`, `BaseExplainer`, los registros por nombre, las
-métricas, las particiones y la política de umbral. El generador, la construcción del grafo, los
-constructores de variables, los modelos y explicadores concretos y el orquestador tienen definidas sus
-interfaces y lanzan `NotImplementedError`; por eso el comando de ejecución de experimentos todavía no
-produce resultados.
+Implementado y probado: `ExperimentData`, `InvoiceNetwork`, `BaseDetector`, `BaseExplainer`, los
+registros por nombre, las métricas, las particiones, la política de umbral y el generador de la red
+sintética. La construcción del grafo, los constructores de variables, los modelos y explicadores
+concretos y el orquestador tienen definidas sus interfaces y lanzan `NotImplementedError`; por eso el
+comando de ejecución de experimentos todavía no produce resultados.
 
 ## Arquitectura
 

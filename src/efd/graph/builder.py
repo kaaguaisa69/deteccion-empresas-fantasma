@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from efd.generation.network import InvoiceNetwork
+from efd.network import InvoiceNetwork
 
 if TYPE_CHECKING:
     import networkx as nx
@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 
 
 class InvoiceGraphBuilder:
-    """Convierte la red en un grafo dirigido emisor → receptor con un nodo por empresa.
+    """Convierte la red en un grafo dirigido emisor → receptor con un nodo por contribuyente.
 
     Las aristas agregan las facturas entre cada par de empresas. El orden de los nodos sigue el de
-    ``network.companies``, el mismo que usa la vista tabular de ``ExperimentData``.
+    ``network.taxpayers``, el mismo que usa la vista tabular de ``ExperimentData``.
     """
 
     def to_networkx(self, network: InvoiceNetwork) -> nx.DiGraph:
@@ -28,9 +28,9 @@ class InvoiceGraphBuilder:
         """Construye la vista de grafo de PyTorch Geometric usada por G3.
 
         Args:
-            network: red de empresas y facturas.
-            node_features: variables de nodo, indexadas por ``company_id`` en el orden de
-                ``network.companies``.
+            network: red de contribuyentes, facturas y representantes legales.
+            node_features: variables de nodo, indexadas por ``taxpayer_id`` en el orden de
+                ``network.taxpayers``.
 
         Returns:
             Objeto ``Data`` con ``x``, ``edge_index``, ``edge_attr`` e ``y``.

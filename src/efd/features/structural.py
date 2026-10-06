@@ -6,7 +6,7 @@ import pandas as pd
 
 from efd.features.base import BaseFeatureBuilder
 from efd.features.registry import register_feature_builder
-from efd.generation.network import InvoiceNetwork
+from efd.network import InvoiceNetwork
 
 
 @register_feature_builder
