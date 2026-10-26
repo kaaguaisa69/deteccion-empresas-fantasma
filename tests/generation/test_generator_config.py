@@ -54,6 +54,13 @@ def test_config_hash_is_stable_and_sensitive() -> None:
     assert GeneratorConfig.from_dict(raw).config_hash() != first.config_hash()
 
 
+@pytest.mark.parametrize("output_root", ["data/synthetic", "data\\synthetic"])
+def test_output_root_is_serialized_with_forward_slashes(output_root: str) -> None:
+    raw = small_raw()
+    raw["output_root"] = output_root
+    assert GeneratorConfig.from_dict(raw).to_dict()["output_root"] == "data/synthetic"
+
+
 @pytest.mark.parametrize(
     "output_root", ["data/synthetic", "data\\synthetic", "C:\\Users\\otra\\salida", "/home/otra/salida"]
 )

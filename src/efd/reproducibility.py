@@ -1,15 +1,42 @@
-"""Control de semillas aleatorias.
+"""Control de semillas aleatorias y registro de versiones de librerías.
 
 La semilla se declara una sola vez en la configuración del experimento y se propaga desde aquí a todas
-las fuentes de aleatoriedad del proceso.
+las fuentes de aleatoriedad del proceso. Las versiones de las librerías se guardan con cada escenario y
+cada corrida, porque un mismo código puede producir resultados distintos con versiones distintas.
 """
 
 from __future__ import annotations
 
+import platform
 import random
+from importlib.metadata import PackageNotFoundError, version
 from importlib.util import find_spec
 
 import numpy as np
+
+STACK_LIBRARIES = (
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "xgboost",
+    "torch",
+    "torch_geometric",
+    "networkx",
+    "shap",
+    "pyyaml",
+    "pyarrow",
+)
+
+
+def library_versions() -> dict[str, str]:
+    """Versión de Python y de cada librería del stack."""
+    versions = {"python": platform.python_version()}
+    for library in STACK_LIBRARIES:
+        try:
+            versions[library] = version(library)
+        except PackageNotFoundError:
+            versions[library] = "no instalada"
+    return versions
 
 
 def set_global_seed(seed: int) -> None:

@@ -261,8 +261,13 @@ class GeneratorConfig:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        """Representación serializable a JSON con la misma estructura que el YAML."""
+        """Representación serializable a JSON con la misma estructura que el YAML.
+
+        ``output_root`` se escribe siempre con "/" para que los metadatos no dependan del sistema
+        operativo.
+        """
         raw = asdict(self)
+        raw["output_root"] = str(self.output_root).replace("\\", "/")
         raw["patterns"] = {
             name: {"proportion": spec.proportion, **spec.params} for name, spec in self.patterns.items()
         }

@@ -3,26 +3,12 @@
 from __future__ import annotations
 
 import json
-import platform
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
 from efd.generation.config import GeneratorConfig
 from efd.network import METADATA_FILE, TABLE_FILES, InvoiceNetwork
-
-LIBRARIES = ("numpy", "pandas", "pyarrow", "networkx", "pyyaml")
-
-
-def library_versions() -> dict[str, str]:
-    """Versión de Python y de las librerías que intervienen en la generación."""
-    versions = {"python": platform.python_version()}
-    for library in LIBRARIES:
-        try:
-            versions[library] = version(library)
-        except PackageNotFoundError:
-            versions[library] = "no instalada"
-    return versions
+from efd.reproducibility import library_versions
 
 
 def build_metadata(config: GeneratorConfig, network: InvoiceNetwork) -> dict[str, Any]:
