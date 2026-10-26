@@ -1,4 +1,4 @@
-"""Verifica que las configuraciones de ``configs/`` solo referencien componentes registrados."""
+"""Verifica que las configuraciones de ``configs/experiments/`` sean válidas y coherentes."""
 
 from __future__ import annotations
 
@@ -7,44 +7,38 @@ from pathlib import Path
 import pytest
 import yaml
 
-from efd.evaluation.metrics import METRICS
-from efd.evaluation.threshold import THRESHOLD_POLICIES, create_threshold_policy
-from efd.explainability import EXPLAINERS
-from efd.features import FEATURE_BUILDERS
-from efd.models import available_detectors
+from efd.evaluation.threshold import create_threshold_policy
+from efd.experiments import ExperimentConfig
 
-CONFIGS_DIR = Path(__file__).resolve().parents[1] / "configs"
-
-
-def _is_experiment_config(path: Path) -> bool:
-    """Las configuraciones de experimento tienen la sección ``experiment``; el generador tiene la suya."""
-    return "experiment" in yaml.safe_load(path.read_text(encoding="utf-8"))
-
-
-CONFIG_FILES = sorted(path for path in CONFIGS_DIR.glob("*.yaml") if _is_experiment_config(path))
-
-
-@pytest.fixture(params=CONFIG_FILES, ids=lambda path: path.name)
-def config(request: pytest.FixtureRequest) -> dict:
-    return yaml.safe_load(request.param.read_text(encoding="utf-8"))
+EXPERIMENTS_DIR = Path(__file__).resolve().parents[1] / "configs" / "experiments"
+CONFIG_FILES = sorted(EXPERIMENTS_DIR.glob("*.yaml"))
 
 
 def test_configs_exist() -> None:
     assert CONFIG_FILES
 
 
-def test_experiment_section(config: dict) -> None:
-    assert config["experiment"]["name"]
-    assert isinstance(config["experiment"]["seed"], int)
-
-
-def test_referenced_components_are_registered(config: dict) -> None:
-    assert set(config["evaluation"]["metrics"]) <= set(METRICS.names())
-    threshold = dict(config["threshold"])
-    assert threshold["strategy"] in THRESHOLD_POLICIES
+@pytest.mark.parametrize("path", CONFIG_FILES, ids=lambda path: path.name)
+def test_experiment_configs_are_valid(path: Path) -> None:
+    config = ExperimentConfig.load(path)
+    assert config.name == path.stem
+    threshold = dict(config.threshold)
     create_threshold_policy(threshold.pop("strategy"), **threshold)
-    for group in config["groups"].values():
-        assert set(group["features"]) <= set(FEATURE_BUILDERS.names())
-        assert group["explainer"] in EXPLAINERS
-        for model in group["models"]:
-            assert model["name"] in available_detectors()
+
+
+@pytest.mark.parametrize(
+    ("section", "key", "value"),
+    [
+        ("experiment", "feature_set", "G9"),
+        ("experiment", "seeds", []),
+        ("model", "name", "inexistente"),
+        ("evaluation", "metrics", ["accuracy"]),
+        ("threshold", "strategy", "otro"),
+        ("experiment", "name", "con espacios"),
+    ],
+)
+def test_invalid_experiment_configs_are_rejected(section: str, key: str, value: object) -> None:
+    raw = yaml.safe_load(CONFIG_FILES[0].read_text(encoding="utf-8"))
+    raw[section][key] = value
+    with pytest.raises(ValueError):
+        ExperimentConfig.from_dict(raw)

@@ -8,25 +8,26 @@ principio de diseño.
 ## Flujo de un experimento
 
 ```
-configs/<experimento>.yaml
-        │
-        ▼
-InvoiceNetworkGenerator ──► InvoiceNetwork (empresas + facturas)
-        │
-        ├─► constructores de variables (transactional, structural) ──► vista tabular
-        └─► InvoiceGraphBuilder.to_pyg ───────────────────────────────► vista de grafo
-                                    │
-                                    ▼
-                             ExperimentData
-                                    │
-                    stratified_folds(y, n_splits, val_size, seed)
-                                    │
-        para cada pliegue, grupo y modelo:
-            detector.fit(data, train_idx, val_idx)
-            umbral = política.select(y[val_idx], detector.predict_proba(data, val_idx))
-            compute_metrics(y[test_idx], detector.predict_proba(data, test_idx), umbral)
-                                    │
-                                    ▼
+configs/generator.yaml ──► python -m efd.generation ──► data/synthetic/<escenario>/
+                                                                 │
+configs/experiments/<experimento>.yaml ──► python -m efd.experiments
+                                                                 │
+        para cada semilla:                                       ▼
+            InvoiceNetwork ─┬─► variables del grupo (G1 o G2) ──► vista tabular
+                            └─► InvoiceGraphBuilder.to_pyg ─────► vista de grafo (si el detector la usa)
+                                                   │
+                                                   ▼
+                                            ExperimentData
+                                                   │
+                            stratified_folds(y, n_splits, val_size, semilla)
+                                                   │
+            para cada pliegue:
+                detector.fit(data, train_idx, val_idx)
+                umbral = política.select(y[val_idx], detector.predict_proba(data, val_idx))
+                compute_metrics(y[test_idx], detector.predict_proba(data, test_idx), umbral)
+            precision@k sobre las predicciones de prueba de todos los pliegues
+                                                   │
+                                                   ▼
             results/runs/<AAAAMMDD-HHMMSS>_<experimento>/
 ```
 
@@ -114,6 +115,11 @@ dominadas por los verdaderos negativos; AUC-PR se centra en la clase positiva. P
 una capacidad de fiscalización limitada a `k` empresas. Las métricas que no tienen sentido con una sola
 clase (AUC-PR, AUC-ROC) lanzan un error en lugar de devolver un valor engañoso.
 
+Las métricas se calculan por pliegue de prueba, salvo precision@k, que se calcula por semilla sobre las
+predicciones de prueba de todos los pliegues juntas: por pliegue hay pocas fantasmas y precision@k
+tendría un máximo artificialmente bajo para `k` grandes. La justificación detallada está en
+[features_design.md](features_design.md).
+
 ## Trazabilidad
 
 Cada ejecución crea `results/runs/<AAAAMMDD-HHMMSS>_<experimento>/` (`src/efd/experiments/run_record.py`)
@@ -130,8 +136,9 @@ anteriores quedan disponibles para comparación.
   - `seed` en `configs/generator.yaml` identifica el escenario de datos. El generador crea con ella un
     único `numpy.random.Generator` y lo pasa explícitamente a cada etapa; la semilla y la huella de la
     configuración quedan en `metadata.json`.
-  - `experiment.seed` en la configuración del experimento se propaga a las particiones, a los modelos,
-    a los explicadores y, mediante `src/efd/reproducibility.py`, a `random`, NumPy y PyTorch.
+  - `experiment.seeds` en la configuración del experimento: cada semilla repite el k-fold completo y
+    se propaga a las particiones, a los modelos, a los cálculos aleatorios de las variables, a los
+    explicadores y, mediante `src/efd/reproducibility.py`, a `random`, NumPy y PyTorch.
 
   Separarlas permite repetir un experimento con otra semilla de particiones o de modelos sobre el mismo
   escenario de datos, y al revés.
@@ -206,8 +213,8 @@ componente con `create_detector`, `create_explainer`, `create_feature_builder` o
 - Métricas: `src/efd/evaluation/metrics.py`.
 - Particiones: `src/efd/evaluation/splits.py`.
 - Regla de decisión con umbral: `binarize` en `src/efd/evaluation/threshold.py`.
-- Semillas: `seed` en `configs/generator.yaml` para los datos y `experiment.seed` para particiones y
-  modelos, aplicada por `src/efd/reproducibility.py`.
+- Semillas: `seed` en `configs/generator.yaml` para los datos y `experiment.seeds` para particiones y
+  modelos, aplicadas por `src/efd/reproducibility.py`.
 - Mecánica de registro: la clase `Registry` en `src/efd/registry.py`, compartida por todos los registros.
 
 ### KISS — Lo mínimo necesario

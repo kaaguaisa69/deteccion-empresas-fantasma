@@ -46,6 +46,7 @@ results/runs/         una carpeta por ejecución (excluida de git)
 tests/                pruebas con pytest
 docs/architecture.md  decisiones de diseño y su justificación
 docs/generator_design.md  diseño de la red sintética de facturación
+docs/features_design.md   diseño de variables, grafo, modelos tabulares y orquestador
 ```
 
 ## Instalación
@@ -83,26 +84,25 @@ de realismo e integridad de [docs/generator_design.md](docs/generator_design.md)
 falla. Los valores de `configs/generator.yaml` que no provienen de una fuente están marcados como
 "supuesto de diseño".
 
-Ejecutar un experimento a partir de una configuración:
+Ejecutar un experimento (requiere haber generado antes su escenario):
 
 ```bash
-python -m efd.experiments.runner --config configs/example.yaml
+python -m efd.experiments --config configs/experiments/rf_g1_prev1_medio.yaml
 ```
 
-Cada ejecución se guarda en `results/runs/<AAAAMMDD-HHMMSS>_<experimento>/` con la configuración usada,
-la semilla, las particiones, las métricas en JSON y las versiones de las librerías.
-
-`configs/example.yaml` documenta la forma de una configuración: semilla, configuración del generador
-que produce los datos, particiones, política de umbral, métricas y, para cada grupo, sus variables, modelos e explicador. Los
-nombres de componentes que aparecen en el archivo son los registrados en el código.
+Cada archivo de `configs/experiments/` define un escenario, un grupo de variables (`G1` o `G2`), un
+modelo, el número de particiones y una lista de semillas. El comando imprime el resumen de métricas y
+guarda la corrida en `results/runs/<AAAAMMDD-HHMMSS>_<experimento>/`: configuración, escenario,
+particiones, métricas por pliegue y su resumen, predicciones de prueba y versiones de las librerías. Las
+variables y la forma de evaluar están descritas en [docs/features_design.md](docs/features_design.md).
 
 ### Estado de la implementación
 
-Implementado y probado: `ExperimentData`, `InvoiceNetwork`, `BaseDetector`, `BaseExplainer`, los
-registros por nombre, las métricas, las particiones, la política de umbral y el generador de la red
-sintética. La construcción del grafo, los constructores de variables, los modelos y explicadores
-concretos y el orquestador tienen definidas sus interfaces y lanzan `NotImplementedError`; por eso el
-comando de ejecución de experimentos todavía no produce resultados.
+Implementado y probado: los contratos (`ExperimentData`, `InvoiceNetwork`, `BaseDetector`,
+`BaseExplainer`), los registros por nombre, las métricas, las particiones, la política de umbral, el
+generador de la red sintética, las variables de G1 y G2, la vista de grafo para G3, los modelos Random
+Forest y XGBoost y el orquestador. Los modelos GraphSAGE y GAT y los explicadores SHAP y GNNExplainer
+tienen definidas sus interfaces y lanzan `NotImplementedError`.
 
 ## Arquitectura
 

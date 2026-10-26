@@ -1,0 +1,30 @@
+# Prueba de dificultad: Random Forest con variables G1 sobre el escenario base.
+# Los hiperparámetros son supuesto de diseño: no se ajustaron con los resultados.
+
+experiment:
+  name: rf_g1_prev1_medio
+  scenario: data/synthetic/prev1_medio_s42   # generado con python -m efd.generation
+  feature_set: G1                            # G1 = transactional; G2 = transactional + structural
+  seeds: [42]                                # cada semilla repite el k-fold completo
+
+model:
+  name: random_forest
+  params:
+    n_estimators: 500                        # supuesto de diseño
+    class_weight: balanced                   # compensa el desbalance de clases
+    n_jobs: -1                               # usa todos los núcleos; no altera el resultado
+
+features:
+  transactional:
+    round_multiple: 100                      # monto redondo = múltiplo de 100 (docs/features_design.md)
+
+splits:
+  n_splits: 5                                # k-fold estratificado sobre nodos
+  val_size: 0.2                              # fracción de los nodos fuera de prueba para validación
+
+threshold:
+  strategy: max_f1                           # umbral que maximiza F1 en validación
+
+evaluation:
+  metrics: [auc_pr, auc_roc, f1, precision, recall, fpr]   # por pliegue
+  precision_at_k: [100, 200, 400]                          # sobre los pliegues juntos, por semilla

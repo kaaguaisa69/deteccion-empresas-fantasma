@@ -12,7 +12,9 @@ from efd.evaluation.metrics import (
     false_positive_rate,
     precision,
     precision_at_k,
+    precision_at_k_values,
     recall,
+    recall_by_group,
 )
 
 Y_TRUE = np.array([1, 1, 0, 0, 0, 1, 0, 0])
@@ -89,13 +91,47 @@ def test_registered_metric_names() -> None:
     assert set(METRICS.names()) == {"auc_pr", "auc_roc", "f1", "precision", "recall", "fpr"}
 
 
-def test_compute_metrics_applies_threshold_and_k() -> None:
-    results = compute_metrics(Y_TRUE, Y_SCORE, threshold=0.7, k_values=[2])
+def test_compute_metrics_applies_threshold() -> None:
+    results = compute_metrics(Y_TRUE, Y_SCORE, threshold=0.7)
     assert results["auc_pr"] == pytest.approx(auc_pr(Y_TRUE, Y_SCORE))
     assert results["precision"] == pytest.approx(2 / 3)  # 0.9, 0.8 y 0.7 superan el umbral
     assert results["recall"] == pytest.approx(2 / 3)
     assert results["fpr"] == pytest.approx(1 / 5)
-    assert results["precision_at_2"] == pytest.approx(1 / 2)
+    assert not any(name.startswith("precision_at_") for name in results)
+
+
+def test_precision_at_k_values_reports_each_k() -> None:
+    assert precision_at_k_values(Y_TRUE, Y_SCORE, [1, 3]) == {
+        "precision_at_1": 1.0,
+        "precision_at_3": pytest.approx(2 / 3),
+    }
+
+
+def test_precision_at_k_over_pooled_folds_exceeds_per_fold_ceiling() -> None:
+    # Cinco pliegues de 100 nodos con 2 positivos cada uno, todos mejor puntuados que los negativos.
+    # Por pliegue, precision@10 no podría superar 2/10; sobre los pliegues juntos los 10 primeros
+    # son los 10 positivos.
+    y_true = np.tile(np.r_[np.ones(2), np.zeros(98)], 5)
+    y_score = np.where(y_true == 1, 0.9, 0.1) + np.linspace(0, 0.01, y_true.size)
+    per_fold = [precision_at_k(y_true[i : i + 100], y_score[i : i + 100], 10) for i in range(0, 500, 100)]
+    assert max(per_fold) == pytest.approx(0.2)
+    assert precision_at_k_values(y_true, y_score, [10]) == {"precision_at_10": 1.0}
+
+
+def test_recall_by_group() -> None:
+    y_true = np.array([1, 1, 1, 1, 0, 0])
+    y_pred = np.array([1, 0, 1, 1, 1, 0])
+    groups = np.array(["ring", "ring", "chain", "chain", None, None], dtype=object)
+    assert recall_by_group(y_true, y_pred, groups) == {"chain": 1.0, "ring": 0.5}
+
+
+def test_recall_by_group_ignores_negatives_and_absent_groups() -> None:
+    y_true = np.array([1, 0, 0])
+    y_pred = np.array([0, 1, 1])
+    groups = np.array(["ring", "chain", None], dtype=object)
+    assert recall_by_group(y_true, y_pred, groups) == {"ring": 0.0}
+    with pytest.raises(ValueError):
+        recall_by_group(y_true, y_pred, groups[:2])
 
 
 def test_compute_metrics_subset_and_unknown_name() -> None:

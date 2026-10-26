@@ -11,6 +11,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     average_precision_score,
     f1_score,
@@ -150,24 +151,60 @@ def precision_at_k_key(k: int) -> str:
     return f"precision_at_{k}"
 
 
+def precision_at_k_values(
+    y_true: np.ndarray, y_score: np.ndarray, k_values: Iterable[int]
+) -> dict[str, float]:
+    """precision@k para varios ``k`` sobre un mismo conjunto de predicciones.
+
+    Se aplica a las predicciones de prueba de todos los pliegues juntas: cada contribuyente está en
+    prueba una sola vez, así que el conjunto cubre la población completa. Por pliegue, con unas pocas
+    decenas de fantasmas, precision@k tendría un máximo artificialmente bajo para ``k`` grandes. Solo
+    usa el orden de las puntuaciones, no el umbral.
+    """
+    return {precision_at_k_key(k): precision_at_k(y_true, y_score, k) for k in k_values}
+
+
+def recall_by_group(
+    y_true: np.ndarray, y_pred: np.ndarray, groups: np.ndarray
+) -> dict[str, float]:
+    """Recall de cada grupo de positivos (por ejemplo, cada patrón de fraude).
+
+    Args:
+        y_true: etiquetas reales (0/1).
+        y_pred: predicciones binarias.
+        groups: grupo de cada elemento; solo se consideran los positivos con grupo no nulo.
+
+    Returns:
+        ``grupo -> recall`` para los grupos con al menos un positivo, en orden alfabético.
+    """
+    y_true, y_pred = _check_pair(y_true, y_pred, binary=True)
+    groups = pd.Series(np.asarray(groups, dtype=object))
+    if len(groups) != y_true.size:
+        raise ValueError("'groups' debe tener un elemento por predicción.")
+    positives = (y_true == 1) & groups.notna().to_numpy()
+    detected = pd.Series(y_pred[positives]).groupby(groups[positives].to_numpy()).mean()
+    return {str(group): float(value) for group, value in detected.sort_index().items()}
+
+
 def compute_metrics(
     y_true: np.ndarray,
     y_score: np.ndarray,
     threshold: float,
     metric_names: Sequence[str] | None = None,
-    k_values: Iterable[int] = (),
 ) -> dict[str, float]:
-    """Calcula las métricas solicitadas sobre una partición.
+    """Calcula las métricas registradas sobre una partición.
+
+    precision@k no se calcula aquí, sino sobre las predicciones de todos los pliegues juntas (ver
+    ``precision_at_k_values``).
 
     Args:
         y_true: etiquetas reales (0/1).
         y_score: probabilidades de la clase positiva.
         threshold: umbral elegido en validación; se aplica con ``binarize``.
         metric_names: métricas registradas a calcular; ``None`` calcula todas.
-        k_values: valores de ``k`` para precision@k.
 
     Returns:
-        Diccionario ``nombre -> valor``, con precision@k reportada como ``precision_at_<k>``.
+        Diccionario ``nombre -> valor``.
     """
     y_true, y_score = _check_pair(y_true, y_score, binary=False)
     y_pred = binarize(y_score, threshold)
@@ -176,6 +213,4 @@ def compute_metrics(
     for name in names:
         metric = METRICS.get(name)
         results[name] = metric.fn(y_true, y_score if metric.uses_scores else y_pred)
-    for k in k_values:
-        results[precision_at_k_key(k)] = precision_at_k(y_true, y_score, k)
     return results

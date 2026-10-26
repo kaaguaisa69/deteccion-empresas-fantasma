@@ -1,6 +1,13 @@
 """Particiones, métricas y política de umbral."""
 
-from efd.evaluation.metrics import METRICS, compute_metrics, precision_at_k, register_metric
+from efd.evaluation.metrics import (
+    METRICS,
+    compute_metrics,
+    precision_at_k,
+    precision_at_k_values,
+    recall_by_group,
+    register_metric,
+)
 from efd.evaluation.splits import Fold, stratified_folds
 from efd.evaluation.threshold import (
     THRESHOLD_POLICIES,
@@ -18,6 +25,8 @@ __all__ = [
     "compute_metrics",
     "create_threshold_policy",
     "precision_at_k",
+    "precision_at_k_values",
+    "recall_by_group",
     "register_metric",
     "stratified_folds",
 ]
