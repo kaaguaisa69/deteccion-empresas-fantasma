@@ -20,6 +20,7 @@ class GraphSAGEDetector(BaseDetector):
     """
 
     name = "graphsage"
+    requires_graph = True
 
     def __init__(self, seed: int, **hyperparams: Any) -> None:
         """

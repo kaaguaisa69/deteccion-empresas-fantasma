@@ -22,6 +22,8 @@ class BaseDetector(ABC):
     """
 
     name: ClassVar[str] = ""
+    # Indica si el detector lee la vista de grafo; el orquestador solo la construye cuando hace falta.
+    requires_graph: ClassVar[bool] = False
 
     def fit(
         self,

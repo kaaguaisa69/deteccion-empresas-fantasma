@@ -20,6 +20,7 @@ class GATDetector(BaseDetector):
     """
 
     name = "gat"
+    requires_graph = True
 
     def __init__(self, seed: int, **hyperparams: Any) -> None:
         """

@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / "generator.yaml"
+CONFIG_PATH = Path(__file__).resolve().parents[1] / "configs" / "generator.yaml"
 SMALL_N_TAXPAYERS = 2000
 
 with open(CONFIG_PATH, encoding="utf-8") as _handle:

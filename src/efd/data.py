@@ -10,7 +10,10 @@ import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
-    from torch_geometric.data import Data
+    from torch_geometric.data import Data, HeteroData
+
+# Tipo de nodo de los contribuyentes en una vista de grafo heterogénea.
+TAXPAYER_NODE_TYPE = "taxpayer"
 
 
 @dataclass(frozen=True)
@@ -27,13 +30,15 @@ class ExperimentData:
             empresa y debe ser único.
         labels: etiqueta binaria (1 = empresa fantasma, 0 = legítima) con el mismo índice que
             ``features``.
-        graph: grafo de facturación en formato PyTorch Geometric con un nodo por empresa, o ``None``
-            cuando el experimento solo usa la vista tabular.
+        graph: grafo de facturación en formato PyTorch Geometric, o ``None`` cuando el experimento
+            solo usa la vista tabular. Puede ser homogéneo (``Data``, un nodo por empresa) o
+            heterogéneo (``HeteroData``), en cuyo caso los nodos de tipo ``TAXPAYER_NODE_TYPE`` son
+            las empresas.
     """
 
     features: pd.DataFrame
     labels: pd.Series
-    graph: Data | None = None
+    graph: Data | HeteroData | None = None
 
     def __post_init__(self) -> None:
         index = self.features.index
@@ -48,13 +53,19 @@ class ExperimentData:
         if self.graph is not None:
             self._check_graph_alignment(self.graph)
 
-    def _check_graph_alignment(self, graph: Data) -> None:
+    def _check_graph_alignment(self, graph: Data | HeteroData) -> None:
         """Verifica que la vista de grafo describa la misma población que la vista tabular."""
-        if graph.num_nodes != self.n_nodes:
+        if hasattr(graph, "node_types"):
+            if TAXPAYER_NODE_TYPE not in graph.node_types:
+                raise ValueError(f"El grafo heterogéneo no tiene nodos '{TAXPAYER_NODE_TYPE}'.")
+            nodes = graph[TAXPAYER_NODE_TYPE]
+        else:
+            nodes = graph
+        if nodes.num_nodes != self.n_nodes:
             raise ValueError(
-                f"El grafo tiene {graph.num_nodes} nodos y la vista tabular {self.n_nodes} filas."
+                f"El grafo tiene {nodes.num_nodes} nodos de empresa y la vista tabular {self.n_nodes} filas."
             )
-        graph_labels = getattr(graph, "y", None)
+        graph_labels = getattr(nodes, "y", None)
         if graph_labels is not None and not np.array_equal(
             np.asarray(graph_labels).reshape(-1), self.y
         ):
@@ -100,7 +111,7 @@ class ExperimentData:
         positions = self.check_idx(idx)
         return self.features.iloc[positions], self.y[positions]
 
-    def require_graph(self) -> Data:
+    def require_graph(self) -> Data | HeteroData:
         """Devuelve la vista de grafo.
 
         Raises:

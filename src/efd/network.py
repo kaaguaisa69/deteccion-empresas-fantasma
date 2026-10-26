@@ -44,6 +44,11 @@ TABLE_FILES = {
 METADATA_FILE = "metadata.json"
 
 
+def invoice_amounts(invoices: pd.DataFrame) -> pd.Series:
+    """Monto de cada factura sin IVA: ``subtotal_0 + subtotal_15``."""
+    return invoices["subtotal_0"] + invoices["subtotal_15"]
+
+
 def _check_columns(frame: pd.DataFrame, expected: tuple[str, ...], table: str) -> None:
     if set(frame.columns) != set(expected):
         missing = sorted(set(expected) - set(frame.columns))
