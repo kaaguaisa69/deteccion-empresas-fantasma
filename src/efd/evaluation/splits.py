@@ -70,9 +70,7 @@ def stratified_folds(y: np.ndarray, n_splits: int, val_size: float, seed: int) -
     positions = np.arange(y.size)
     folds = []
     for index, (pool, test_idx) in enumerate(outer.split(positions, y)):
-        train_idx, val_idx = train_test_split(
-            pool, test_size=val_size, stratify=y[pool], random_state=seed
-        )
+        train_idx, val_idx = train_test_split(pool, test_size=val_size, stratify=y[pool], random_state=seed)
         folds.append(
             Fold(
                 index=index,

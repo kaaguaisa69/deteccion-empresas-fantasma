@@ -5,11 +5,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
+from tiny_network import PERIOD_END, tiny_context, tiny_network
 
 from efd.features import build_feature_set, create_feature_builder
 from efd.network import LABEL_COLUMNS
-
-from tiny_network import PERIOD_END, tiny_context, tiny_network
 
 
 @pytest.fixture(scope="module")

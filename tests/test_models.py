@@ -45,9 +45,7 @@ def test_fit_rejects_overlapping_or_empty_partitions(small_data: ExperimentData)
         _PrevalenceDetector().fit(small_data, [0, 1, 2], [])
 
 
-@pytest.mark.parametrize(
-    "output", [np.array([0.1, 0.2, 0.3]), np.array([0.1, 1.5]), np.array([0.1, np.nan])]
-)
+@pytest.mark.parametrize("output", [np.array([0.1, 0.2, 0.3]), np.array([0.1, 1.5]), np.array([0.1, np.nan])])
 def test_predict_proba_rejects_invalid_output(small_data: ExperimentData, output: np.ndarray) -> None:
     detector = _BrokenDetector(output)
     with pytest.raises(ValueError):

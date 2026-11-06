@@ -20,7 +20,9 @@ def main(argv: list[str] | None = None) -> Path:
     """Ejecuta el experimento, imprime el resumen y devuelve la carpeta de la corrida."""
     parser = argparse.ArgumentParser(description="Ejecuta un experimento de detección de empresas fantasmas.")
     parser.add_argument("--config", type=Path, required=True, help="archivo YAML del experimento")
-    parser.add_argument("--runs-root", type=Path, default=DEFAULT_RUNS_ROOT, help="carpeta raíz de las corridas")
+    parser.add_argument(
+        "--runs-root", type=Path, default=DEFAULT_RUNS_ROOT, help="carpeta raíz de las corridas"
+    )
     args = parser.parse_args(argv)
 
     started = time.perf_counter()

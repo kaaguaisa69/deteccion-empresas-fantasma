@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from generation_helpers import CONFIG_PATH, small_raw
 
 from efd.generation import GeneratorConfig, InvoiceNetworkGenerator, load_generator_config
 from efd.generation.patterns import PATTERNS
-
-from generation_helpers import CONFIG_PATH, small_raw
 
 
 def test_base_scenario_matches_design() -> None:

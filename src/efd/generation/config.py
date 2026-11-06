@@ -150,8 +150,14 @@ class MarketConfig:
             raise ValueError("'invoices_per_taxpayer' debe ser positivo.")
         if any(value < 1 for value in self.attractiveness.values()):
             raise ValueError("'attractiveness' debe tener enteros mayores o iguales que 1.")
-        for name in ("uniform_choice_probability", "round_amount_fraction", "vat_rate",
-                     "zero_rated_fraction", "reciprocity_fraction", "group_trade_probability"):
+        for name in (
+            "uniform_choice_probability",
+            "round_amount_fraction",
+            "vat_rate",
+            "zero_rated_fraction",
+            "reciprocity_fraction",
+            "group_trade_probability",
+        ):
             check_fraction(getattr(self, name), name)
         if not self.round_multiples or any(multiple <= 0 for multiple in self.round_multiples):
             raise ValueError("'round_multiples' debe contener enteros positivos.")
@@ -250,9 +256,7 @@ class GeneratorConfig:
         return cls(
             seed=raw["seed"],
             output_root=Path(raw["output_root"]),
-            period=PeriodConfig(
-                start=_as_date(raw["period"]["start"]), end=_as_date(raw["period"]["end"])
-            ),
+            period=PeriodConfig(start=_as_date(raw["period"]["start"]), end=_as_date(raw["period"]["end"])),
             population=PopulationConfig(**population),
             shells=ShellProfileConfig(**shells),
             market=MarketConfig(**market),

@@ -86,9 +86,7 @@ class RingPattern(FraudPattern):
                     "buyer",
                     replace=False,
                 )
-                receivers = np.repeat(
-                    buyers, draw_int(rng, self.invoices_per_beneficiary, size=buyers.size)
-                )
+                receivers = np.repeat(buyers, draw_int(rng, self.invoices_per_beneficiary, size=buyers.size))
                 amounts = np.round(
                     rng.lognormal(self.amount_log_mean, self.amount_log_sigma, receivers.size), 2
                 )

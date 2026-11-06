@@ -66,9 +66,7 @@ class ExperimentData:
                 f"El grafo tiene {nodes.num_nodes} nodos de empresa y la vista tabular {self.n_nodes} filas."
             )
         graph_labels = getattr(nodes, "y", None)
-        if graph_labels is not None and not np.array_equal(
-            np.asarray(graph_labels).reshape(-1), self.y
-        ):
+        if graph_labels is not None and not np.array_equal(np.asarray(graph_labels).reshape(-1), self.y):
             raise ValueError("Las etiquetas del grafo no coinciden con las de la vista tabular.")
 
     @property

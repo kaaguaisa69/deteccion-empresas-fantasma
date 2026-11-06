@@ -110,9 +110,7 @@ class InvoiceNetworkGenerator:
         representantes se renumeran al azar.
         """
         ids = state.taxpayers["taxpayer_id"].to_numpy()
-        blocks = pd.concat(
-            [block for kind in state.invoices.values() for block in kind], ignore_index=True
-        )
+        blocks = pd.concat([block for kind in state.invoices.values() for block in kind], ignore_index=True)
         shuffled = rng.permutation(len(blocks))
         order = shuffled[np.argsort(blocks["issue_date"].to_numpy()[shuffled], kind="stable")]
         blocks = blocks.iloc[order].reset_index(drop=True)

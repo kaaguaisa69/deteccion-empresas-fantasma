@@ -26,9 +26,7 @@ def build_metadata(config: GeneratorConfig, network: InvoiceNetwork) -> dict[str
         "counts": {
             "taxpayers": len(taxpayers),
             "shells": len(shells),
-            "shells_by_pattern": {
-                name: int((shells["pattern"] == name).sum()) for name in config.patterns
-            },
+            "shells_by_pattern": {name: int((shells["pattern"] == name).sum()) for name in config.patterns},
             "invoices": len(network.invoices),
             "representatives": int(network.representatives["representative_id"].nunique()),
         },

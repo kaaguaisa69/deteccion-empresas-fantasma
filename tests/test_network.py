@@ -38,9 +38,7 @@ def tables() -> dict[str, pd.DataFrame]:
             "total": [1150.0, 33.0],
         }
     )
-    representatives = pd.DataFrame(
-        {"representative_id": ["RL1", "RL2"], "taxpayer_id": ["TP1", "TP3"]}
-    )
+    representatives = pd.DataFrame({"representative_id": ["RL1", "RL2"], "taxpayer_id": ["TP1", "TP3"]})
     return {"taxpayers": taxpayers, "invoices": invoices, "representatives": representatives}
 
 
@@ -78,9 +76,7 @@ def test_rejects_duplicate_ids(tables: dict[str, pd.DataFrame]) -> None:
     ("table", "column"),
     [("invoices", "issuer_id"), ("invoices", "receiver_id"), ("representatives", "taxpayer_id")],
 )
-def test_rejects_unknown_taxpayers(
-    tables: dict[str, pd.DataFrame], table: str, column: str
-) -> None:
+def test_rejects_unknown_taxpayers(tables: dict[str, pd.DataFrame], table: str, column: str) -> None:
     broken = tables[table].copy()
     broken.loc[0, column] = "TP999"
     with pytest.raises(ValueError, match="inexistentes"):

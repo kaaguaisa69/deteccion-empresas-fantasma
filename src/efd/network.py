@@ -92,6 +92,4 @@ class InvoiceNetwork:
     def load(cls, directory: Path) -> InvoiceNetwork:
         """Carga las tablas de un escenario escrito en ``directory``."""
         directory = Path(directory)
-        return cls(
-            **{table: pd.read_parquet(directory / file) for table, file in TABLE_FILES.items()}
-        )
+        return cls(**{table: pd.read_parquet(directory / file) for table, file in TABLE_FILES.items()})

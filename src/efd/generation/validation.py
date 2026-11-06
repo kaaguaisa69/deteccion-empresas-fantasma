@@ -75,10 +75,9 @@ def check_pattern_structures(network: InvoiceNetwork, config: GeneratorConfig) -
         graph = _pattern_graph(network, RingPattern.name)
         for component in nx.weakly_connected_components(graph):
             ring = graph.subgraph(component)
-            is_cycle = (
-                all(ring.in_degree(node) == 1 and ring.out_degree(node) == 1 for node in ring)
-                and nx.is_strongly_connected(ring)
-            )
+            is_cycle = all(
+                ring.in_degree(node) == 1 and ring.out_degree(node) == 1 for node in ring
+            ) and nx.is_strongly_connected(ring)
             if not (is_cycle and low <= len(ring) <= high):
                 raise ValidationError(f"El anillo {sorted(component)} no forma un ciclo de {low} a {high}.")
 
@@ -95,9 +94,10 @@ def check_pattern_structures(network: InvoiceNetwork, config: GeneratorConfig) -
                 and all(chain.in_degree(node) <= 1 and chain.out_degree(node) <= 1 for node in chain)
             )
             last = [node for node in chain if chain.out_degree(node) == 0]
-            reaches_beneficiary = bool(last) and (
-                ~invoices.loc[invoices["issuer_id"] == last[0], "receiver_id"].isin(shells)
-            ).any()
+            reaches_beneficiary = (
+                bool(last)
+                and (~invoices.loc[invoices["issuer_id"] == last[0], "receiver_id"].isin(shells)).any()
+            )
             # Una cadena de h fantasmas tiene h - 1 saltos internos más el salto al beneficiario.
             if not (is_path and reaches_beneficiary and low <= len(chain) <= high):
                 raise ValidationError(f"La cadena {sorted(component)} no tiene de {low} a {high} saltos.")

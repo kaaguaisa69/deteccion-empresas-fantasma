@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
+from tiny_network import PERIOD_END, PERIOD_START, tiny_context, tiny_network
 
 from efd.data import TAXPAYER_NODE_TYPE, ExperimentData
 from efd.features import create_feature_builder
@@ -16,8 +17,6 @@ from efd.graph.builder import (
     REPRESENTATIVE_NODE_TYPE,
     InvoiceGraphBuilder,
 )
-
-from tiny_network import PERIOD_END, PERIOD_START, tiny_context, tiny_network
 
 torch = pytest.importorskip("torch")
 pytest.importorskip("torch_geometric")
@@ -46,8 +45,12 @@ def test_invoice_edges_aggregate_pairs(hetero) -> None:
     a_to_b = edges.edge_attr[0].tolist()
     span = (PERIOD_END - PERIOD_START).days
     assert a_to_b == pytest.approx(
-        [2, np.log1p(400), (pd.Timestamp("2025-03-10") - PERIOD_START).days / span,
-         (pd.Timestamp("2025-03-20") - PERIOD_START).days / span],
+        [
+            2,
+            np.log1p(400),
+            (pd.Timestamp("2025-03-10") - PERIOD_START).days / span,
+            (pd.Timestamp("2025-03-20") - PERIOD_START).days / span,
+        ],
         rel=1e-6,
     )
     assert edges.edge_attr[3, 3].item() == pytest.approx(1.0)  # C→A el último día del período

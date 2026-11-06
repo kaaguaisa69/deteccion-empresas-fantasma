@@ -51,18 +51,14 @@ def split_into_groups(
     groups, start = [], 0
     while start < len(shuffled):
         remaining = len(shuffled) - start
-        feasible = [
-            size for size in range(low, min(high, remaining) + 1) if table[remaining - size]
-        ]
+        feasible = [size for size in range(low, min(high, remaining) + 1) if table[remaining - size]]
         size = int(rng.choice(feasible))
         groups.append(shuffled[start : start + size])
         start += size
     return groups
 
 
-def _start_dates(
-    rng: np.random.Generator, config: GeneratorConfig, is_shell: np.ndarray
-) -> np.ndarray:
+def _start_dates(rng: np.random.Generator, config: GeneratorConfig, is_shell: np.ndarray) -> np.ndarray:
     """Fechas de inicio de actividades.
 
     Una fracción de legítimos inicia dentro del período para que la antigüedad no delate a las
@@ -90,9 +86,7 @@ def _start_dates(
     return np.where(is_shell, shell_starts, starts).astype("datetime64[D]")
 
 
-def build_population(
-    config: GeneratorConfig, rng: np.random.Generator
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+def build_population(config: GeneratorConfig, rng: np.random.Generator) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Crea los contribuyentes y sus representantes legales.
 
     Las fantasmas ocupan posiciones aleatorias, de modo que el identificador no revela la etiqueta.

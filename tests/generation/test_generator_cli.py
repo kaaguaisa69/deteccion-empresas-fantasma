@@ -4,11 +4,10 @@ import json
 from pathlib import Path
 
 import yaml
+from generation_helpers import small_raw
 
 from efd.generation.__main__ import main
 from efd.network import METADATA_FILE, TABLE_FILES, InvoiceNetwork
-
-from generation_helpers import small_raw
 
 
 def test_command_writes_scenario(tmp_path: Path) -> None:

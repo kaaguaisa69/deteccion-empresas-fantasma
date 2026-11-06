@@ -6,13 +6,12 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
+from tiny_network import tiny_context, tiny_network
 
 from efd.features import build_feature_set
 from efd.graph.builder import InvoiceGraphBuilder
 from efd.graph.structural import STRUCTURAL_COLUMNS, StructuralMetricsCalculator
 from efd.network import InvoiceNetwork
-
-from tiny_network import tiny_context, tiny_network
 
 NO_REPRESENTATIVES = pd.DataFrame({"representative_id": [], "taxpayer_id": []})
 

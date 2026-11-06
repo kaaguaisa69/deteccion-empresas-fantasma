@@ -87,9 +87,7 @@ class TransactionalFeatureBuilder(BaseFeatureBuilder):
             axis=1,
         )
 
-    def _side(
-        self, invoices: pd.DataFrame, own: str, other: str, ids: pd.Index, prefix: str
-    ) -> pd.DataFrame:
+    def _side(self, invoices: pd.DataFrame, own: str, other: str, ids: pd.Index, prefix: str) -> pd.DataFrame:
         """Estadísticas de las facturas en que el contribuyente aparece en la columna ``own``."""
         frame = pd.DataFrame(
             {
@@ -141,9 +139,11 @@ class TransactionalFeatureBuilder(BaseFeatureBuilder):
         for prefix in SIDES:
             mean = sides[f"{prefix}_mean"]
             active = sides[f"{prefix}_count"] > 0
-            peers = mean[active].groupby(
-                [taxpayers.loc[active, "sector"], taxpayers.loc[active, "size"]]
-            ).transform("median")
+            peers = (
+                mean[active]
+                .groupby([taxpayers.loc[active, "sector"], taxpayers.loc[active, "size"]])
+                .transform("median")
+            )
             relative[f"{prefix}_mean_relative"] = (mean[active] / peers).reindex(sides.index, fill_value=0.0)
         return pd.DataFrame(relative)
 
@@ -153,8 +153,13 @@ class TransactionalFeatureBuilder(BaseFeatureBuilder):
         month = invoices["issue_date"].dt.year * 12 + invoices["issue_date"].dt.month
         participation = pd.concat(
             [
-                pd.DataFrame({"taxpayer": invoices[column].to_numpy(), "date": invoices["issue_date"].to_numpy(),
-                              "month": month.to_numpy()})
+                pd.DataFrame(
+                    {
+                        "taxpayer": invoices[column].to_numpy(),
+                        "date": invoices["issue_date"].to_numpy(),
+                        "month": month.to_numpy(),
+                    }
+                )
                 for column in ("issuer_id", "receiver_id")
             ],
             ignore_index=True,

@@ -64,8 +64,10 @@ class MarketModel:
         self.n = len(taxpayers)
 
         matrix = np.array(
-            [[market.sector_matrix[buyer].get(supplier, 0.0) for supplier in self.sectors]
-             for buyer in self.sectors],
+            [
+                [market.sector_matrix[buyer].get(supplier, 0.0) for supplier in self.sectors]
+                for buyer in self.sectors
+            ],
             dtype=np.float64,
         )
         self.matrix = matrix / matrix.sum(axis=1, keepdims=True)
@@ -86,9 +88,7 @@ class MarketModel:
 
     # Muestreadores compartidos con patrones y camuflaje.
 
-    def sample_dates(
-        self, rng: np.random.Generator, lower: np.ndarray, upper: np.ndarray
-    ) -> np.ndarray:
+    def sample_dates(self, rng: np.random.Generator, lower: np.ndarray, upper: np.ndarray) -> np.ndarray:
         """Fechas con estacionalidad mensual, cada una dentro de ``[lower, upper]`` (inclusive).
 
         Raises:
@@ -116,7 +116,9 @@ class MarketModel:
         market = self.config.market
         buyers = np.asarray(buyers, dtype=np.int64)
         amounts = np.round(
-            np.exp(self.log_mean[self.size[buyers]] + market.amount_log_sigma * rng.standard_normal(buyers.size)),
+            np.exp(
+                self.log_mean[self.size[buyers]] + market.amount_log_sigma * rng.standard_normal(buyers.size)
+            ),
             2,
         )
         amounts = np.maximum(amounts, 0.01)
@@ -146,7 +148,9 @@ class MarketModel:
         """
         candidates = np.flatnonzero(self.legit & (self.start <= latest_start))
         if role == "buyer":
-            weights = self.purchase_weight[self.size[candidates]] * self.matrix[self.sector[candidates], sector]
+            weights = (
+                self.purchase_weight[self.size[candidates]] * self.matrix[self.sector[candidates], sector]
+            )
         elif role == "supplier":
             weights = (
                 self.customer_counts[candidates] + self.attractiveness[self.size[candidates]]

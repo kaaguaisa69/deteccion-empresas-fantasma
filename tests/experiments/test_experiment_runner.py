@@ -58,7 +58,10 @@ def _metrics(run_dir: Path) -> dict[str, Any]:
 def test_run_directory_contents(run_dir: Path) -> None:
     assert run_dir.name.endswith("_rf_g1_test")
     assert all((run_dir / file).exists() for file in RUN_FILES)
-    assert yaml.safe_load((run_dir / "config.yaml").read_text(encoding="utf-8"))["experiment"]["seeds"] == [1, 2]
+    assert yaml.safe_load((run_dir / "config.yaml").read_text(encoding="utf-8"))["experiment"]["seeds"] == [
+        1,
+        2,
+    ]
     scenario = json.loads((run_dir / "scenario.json").read_text(encoding="utf-8"))
     assert scenario["name"] == "prev1_medio_s42" and len(scenario["config_hash"]) == 64
     environment = json.loads((run_dir / "environment.json").read_text(encoding="utf-8"))
@@ -91,7 +94,12 @@ def test_metrics_per_fold_and_summary(run_dir: Path) -> None:
     assert len(metrics["folds"]) == 6  # 2 semillas × 3 pliegues
     for fold in metrics["folds"]:
         assert set(fold["metrics"]) == {"auc_pr", "auc_roc", "f1", "precision", "recall", "fpr"}
-        assert set(fold["recall_by_pattern"]) <= {"isolated_emitter", "ring", "chain", "shared_representative"}
+        assert set(fold["recall_by_pattern"]) <= {
+            "isolated_emitter",
+            "ring",
+            "chain",
+            "shared_representative",
+        }
     summary = metrics["summary"]
     auc_pr = [fold["metrics"]["auc_pr"] for fold in metrics["folds"]]
     assert summary["metrics"]["auc_pr"] == mean_std(auc_pr)

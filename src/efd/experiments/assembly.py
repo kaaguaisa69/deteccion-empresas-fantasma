@@ -69,7 +69,9 @@ def load_scenario(path: Path) -> Scenario:
     config = GeneratorConfig.from_dict(metadata["config"])
     if config.config_hash() != metadata["config_hash"]:
         raise ValueError(f"La huella de {path / METADATA_FILE} no coincide con su configuración.")
-    return Scenario(path=path, network=InvoiceNetwork.load(path), config=config, config_hash=metadata["config_hash"])
+    return Scenario(
+        path=path, network=InvoiceNetwork.load(path), config=config, config_hash=metadata["config_hash"]
+    )
 
 
 def assemble_experiment_data(

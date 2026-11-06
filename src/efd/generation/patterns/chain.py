@@ -59,7 +59,9 @@ class ChainPattern(FraudPattern):
             lower, upper = state.window(members)
             n_operations = draw_int(rng, self.operations)
             gaps = rng.integers(1, self.max_gap_days + 1, size=(n_operations, hops - 1))
-            offsets = np.concatenate([np.zeros((n_operations, 1), dtype=np.int64), gaps.cumsum(axis=1)], axis=1)
+            offsets = np.concatenate(
+                [np.zeros((n_operations, 1), dtype=np.int64), gaps.cumsum(axis=1)], axis=1
+            )
             starts = market.sample_dates(
                 rng,
                 np.full(n_operations, lower),

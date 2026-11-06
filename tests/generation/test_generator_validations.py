@@ -13,6 +13,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
+from generation_helpers import small_raw
 
 from efd.generation import GeneratedScenario, GeneratorConfig, InvoiceNetworkGenerator
 from efd.generation.validation import (
@@ -28,8 +29,6 @@ from efd.generation.validation import (
     validate_network,
 )
 from efd.network import METADATA_FILE, TABLE_FILES, InvoiceNetwork
-
-from generation_helpers import small_raw
 
 
 def _ids(network: InvoiceNetwork, pattern: str) -> set[str]:
@@ -139,9 +138,7 @@ def test_shared_representative_groups(
     assert (taxpayers.loc[sorted(p4), "taxpayer_type"] == "sociedad").all()
 
     split = links.copy()
-    split.loc[split["taxpayer_id"].isin(p4), "representative_id"] = [
-        f"RL-X{i}" for i in range(len(p4))
-    ]
+    split.loc[split["taxpayer_id"].isin(p4), "representative_id"] = [f"RL-X{i}" for i in range(len(p4))]
     with pytest.raises(ValidationError, match="representante"):
         check_pattern_structures(replace(network, representatives=split), small_config)
 
@@ -280,11 +277,15 @@ def test_legitimate_noise_requires_reciprocal_trade(
     invoices = network.invoices
     pairs = invoices[["issuer_id", "receiver_id"]]
     # Conserva un solo sentido de cada par: elimina las facturas del emisor "mayor".
-    reciprocal = pairs.merge(
-        pairs.rename(columns={"issuer_id": "receiver_id", "receiver_id": "issuer_id"}).drop_duplicates(),
-        how="left",
-        indicator=True,
-    )["_merge"].eq("both").to_numpy()
+    reciprocal = (
+        pairs.merge(
+            pairs.rename(columns={"issuer_id": "receiver_id", "receiver_id": "issuer_id"}).drop_duplicates(),
+            how="left",
+            indicator=True,
+        )["_merge"]
+        .eq("both")
+        .to_numpy()
+    )
     mask = pd.Series(reciprocal & (invoices["issuer_id"] > invoices["receiver_id"]).to_numpy())
     with pytest.raises(ValidationError, match="recíproco"):
         check_legitimate_noise(_drop_invoices(network, mask), small_config)
@@ -311,9 +312,7 @@ def test_recent_legitimate_taxpayers(
 # 9. Facturas legítimas con montos redondos.
 
 
-def test_round_legitimate_amounts(
-    small_scenario: GeneratedScenario, small_config: GeneratorConfig
-) -> None:
+def test_round_legitimate_amounts(small_scenario: GeneratedScenario, small_config: GeneratorConfig) -> None:
     network = small_scenario.network
     check_round_legitimate_amounts(network, small_config)
 

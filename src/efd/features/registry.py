@@ -52,7 +52,9 @@ def build_feature_set(
             contribuyentes.
     """
     if feature_set not in FEATURE_SETS:
-        raise KeyError(f"Grupo de variables desconocido: '{feature_set}'. Disponibles: {sorted(FEATURE_SETS)}")
+        raise KeyError(
+            f"Grupo de variables desconocido: '{feature_set}'. Disponibles: {sorted(FEATURE_SETS)}"
+        )
     params = params or {}
     ids = pd.Index(network.taxpayers["taxpayer_id"], name="taxpayer_id")
     blocks = []

@@ -164,9 +164,7 @@ def precision_at_k_values(
     return {precision_at_k_key(k): precision_at_k(y_true, y_score, k) for k in k_values}
 
 
-def recall_by_group(
-    y_true: np.ndarray, y_pred: np.ndarray, groups: np.ndarray
-) -> dict[str, float]:
+def recall_by_group(y_true: np.ndarray, y_pred: np.ndarray, groups: np.ndarray) -> dict[str, float]:
     """Recall de cada grupo de positivos (por ejemplo, cada patrón de fraude).
 
     Args:

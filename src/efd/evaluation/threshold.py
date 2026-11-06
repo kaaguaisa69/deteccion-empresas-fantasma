@@ -36,9 +36,7 @@ class ThresholdPolicy(ABC):
         """Devuelve el umbral en [0, 1] que se aplicará a la partición de prueba."""
 
 
-THRESHOLD_POLICIES: ClassRegistry[ThresholdPolicy] = ClassRegistry(
-    "política de umbral", ThresholdPolicy
-)
+THRESHOLD_POLICIES: ClassRegistry[ThresholdPolicy] = ClassRegistry("política de umbral", ThresholdPolicy)
 
 
 @THRESHOLD_POLICIES.register

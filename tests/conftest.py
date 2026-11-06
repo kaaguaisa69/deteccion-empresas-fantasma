@@ -7,10 +7,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from generation_helpers import small_raw
 
 from efd.data import ExperimentData
 from efd.generation import GeneratedScenario, GeneratorConfig, InvoiceNetworkGenerator
-from generation_helpers import small_raw
 
 
 @pytest.fixture
