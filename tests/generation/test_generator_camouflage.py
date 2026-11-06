@@ -34,7 +34,7 @@ def test_camouflage_share_per_shell(level: str) -> None:
     shells = np.flatnonzero(state.taxpayers["is_shell"].to_numpy() == 1)
     legit = np.flatnonzero(state.taxpayers["is_shell"].to_numpy() == 0)
     fraud_per_shell = np.arange(1, shells.size + 1) * 3
-    for shell, n in zip(shells, fraud_per_shell):
+    for shell, n in zip(shells, fraud_per_shell, strict=True):
         state.add_invoices(
             "fraud", shell, legit[:n], np.full(n, np.datetime64("2025-06-01")), np.full(n, 100.0)
         )
@@ -43,7 +43,7 @@ def test_camouflage_share_per_shell(level: str) -> None:
 
     camouflage = pd.concat(state.invoices["camouflage"], ignore_index=True)
     share = state.config.camouflage.share
-    for shell, n in zip(shells, fraud_per_shell):
+    for shell, n in zip(shells, fraud_per_shell, strict=True):
         involved = int(((camouflage["issuer"] == shell) | (camouflage["receiver"] == shell)).sum())
         assert involved == round(share / (1 - share) * n)
     # Las contrapartes del camuflaje son siempre legítimas.

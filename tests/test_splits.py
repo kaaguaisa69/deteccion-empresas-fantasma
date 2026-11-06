@@ -37,10 +37,10 @@ def test_same_seed_same_partitions_different_seed_different_partitions() -> None
     first = stratified_folds(Y, n_splits=5, val_size=0.25, seed=7)
     second = stratified_folds(Y, n_splits=5, val_size=0.25, seed=7)
     other = stratified_folds(Y, n_splits=5, val_size=0.25, seed=8)
-    for a, b in zip(first, second):
+    for a, b in zip(first, second, strict=True):
         np.testing.assert_array_equal(a.test_idx, b.test_idx)
         np.testing.assert_array_equal(a.val_idx, b.val_idx)
-    assert any(not np.array_equal(a.test_idx, c.test_idx) for a, c in zip(first, other))
+    assert any(not np.array_equal(a.test_idx, c.test_idx) for a, c in zip(first, other, strict=True))
 
 
 def test_fold_is_json_serializable() -> None:

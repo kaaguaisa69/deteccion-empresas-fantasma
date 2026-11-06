@@ -237,7 +237,7 @@ class MarketModel:
         by_customers: list[list[int]] = [[] for _ in self.sectors]
         supplier_of_pick = np.full(buyer_of_pick.size, -1, dtype=np.int64)
         pick = 0
-        for buyer, n_picks in zip(order.tolist(), picks.tolist()):
+        for buyer, n_picks in zip(order.tolist(), picks.tolist(), strict=True):
             chosen: set[int] = set()
             for j in range(pick, pick + n_picks):
                 sector = sector_of_pick[j]

@@ -40,8 +40,8 @@ def node_reciprocity(graph: nx.DiGraph) -> pd.Series:
     nodes = pd.Index(list(graph.nodes))
     if edges.empty:
         return pd.Series(0.0, index=nodes)
-    reverse = set(zip(edges["target"], edges["source"]))
-    edges["reciprocated"] = [pair in reverse for pair in zip(edges["source"], edges["target"])]
+    reverse = set(zip(edges["target"], edges["source"], strict=True))
+    edges["reciprocated"] = [pair in reverse for pair in zip(edges["source"], edges["target"], strict=True)]
     incident = pd.concat(
         [
             edges[["source", "reciprocated"]].set_axis(["node", "reciprocated"], axis=1),

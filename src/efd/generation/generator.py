@@ -128,7 +128,7 @@ class InvoiceNetworkGenerator:
 
         representatives = state.representatives
         unique = np.sort(representatives["representative_id"].unique())
-        relabel = dict(zip(unique, rng.permutation(unique.size)))
+        relabel = dict(zip(unique, rng.permutation(unique.size), strict=True))
         width = max(6, len(str(unique.size)))
         representatives = pd.DataFrame(
             {
