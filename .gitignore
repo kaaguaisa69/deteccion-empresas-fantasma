@@ -2,10 +2,6 @@
 data/
 results/runs/
 
-# Configuración local del entorno de trabajo
-CLAUDE.md
-.claude/
-
 # Entorno virtual y artefactos de Python
 .venv/
 __pycache__/
