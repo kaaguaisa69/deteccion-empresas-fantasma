@@ -1,0 +1,38 @@
+name: Revisión de contenido del PR
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  revision:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Revisar título, descripción, commits y líneas añadidas
+        env:
+          PATRON: ${{ vars.PATRON_BLOQUEO }}
+          TITULO: ${{ github.event.pull_request.title }}
+          CUERPO: ${{ github.event.pull_request.body }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          if [ -z "$PATRON" ]; then
+            echo "Variable PATRON_BLOQUEO no definida"
+            exit 1
+          fi
+          {
+            printf '%s\n' "$TITULO" "$CUERPO"
+            git log --format=%B "origin/$BASE..HEAD"
+            git diff "origin/$BASE...HEAD" | grep '^+' | grep -v '^+++' || true
+          } > contenido.txt
+          if grep -inE "$PATRON" contenido.txt; then
+            echo "El PR contiene términos no permitidos (líneas arriba)."
+            exit 1
+          fi
+          echo "Sin coincidencias."
