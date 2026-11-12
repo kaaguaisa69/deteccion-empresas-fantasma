@@ -51,16 +51,19 @@ docs/features_design.md   diseño de variables, grafo, modelos tabulares y orque
 
 ## Instalación
 
-Requiere Python 3.11 o superior. El proyecto se probó con Python 3.13.
+Requiere Python 3.11 o superior. Los resultados se obtienen con el entorno de referencia: Python 3.13.14 y las
+versiones exactas de `requirements.txt`. El generador solo reproduce el mismo escenario con las mismas versiones
+(ver [docs/generator_design.md](docs/generator_design.md#reproducibilidad)).
 
 ```bash
-python -m venv .venv
+python -m venv .venv          # con Python 3.13.14
 # Windows
 .venv\Scripts\activate
 # Linux / macOS
 source .venv/bin/activate
 
-pip install -e ".[dev]"
+pip install -r requirements.txt
+pip install -e . --no-deps
 ```
 
 ## Uso

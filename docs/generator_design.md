@@ -109,6 +109,17 @@ según el sistema operativo.
 
 `is_shell` y `pattern` son etiquetas: ningún módulo de variables puede usarlas como entrada.
 
+## Reproducibilidad
+Dentro de un mismo entorno, la misma semilla y la misma configuración producen archivos idénticos byte a byte:
+se comprobó generando el escenario base en procesos separados y con distintos valores de `PYTHONHASHSEED`.
+
+Entre entornos distintos no se garantiza, porque numpy no asegura la misma secuencia de números aleatorios entre
+versiones. Con `config_hash b465da7f…` y semilla 42, numpy 2.5.3 produce 1 995 109 facturas y 9 325
+representantes, y numpy 2.4.6 produce 1 995 368 facturas y 9 324 representantes; el cambio de pandas
+(3.0.6 / 3.1.1) no altera el resultado. Por eso el entorno de referencia está fijado en `requirements.txt`
+(Python 3.13.14) y `metadata.json` registra las versiones con que se generó cada escenario. Los resultados
+obtenidos con otras versiones se tratan como réplicas, no como el mismo escenario.
+
 ## Validaciones (pruebas automáticas)
 1. Misma semilla y configuración producen archivos idénticos.
 2. El número de fantasmas es exactamente el configurado y cada patrón respeta su proporción.
