@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -37,6 +38,7 @@ def build_feature_set(
     network: InvoiceNetwork,
     context: FeatureContext,
     params: Mapping[str, Mapping[str, Any]] | None = None,
+    timings: dict[str, float] | None = None,
 ) -> pd.DataFrame:
     """Construye y concatena los bloques de variables de un grupo experimental.
 
@@ -45,6 +47,7 @@ def build_feature_set(
         network: red de facturación.
         context: período y semilla de la corrida.
         params: parámetros por constructor, ``{nombre: {parámetro: valor}}``.
+        timings: si se pasa, se llena con los segundos de cada constructor, ``{nombre: segundos}``.
 
     Raises:
         KeyError: si el grupo no existe.
@@ -59,7 +62,10 @@ def build_feature_set(
     ids = pd.Index(network.taxpayers["taxpayer_id"], name="taxpayer_id")
     blocks = []
     for name in FEATURE_SETS[feature_set]:
+        started = time.perf_counter()
         block = create_feature_builder(name, **params.get(name, {})).build(network, context)
+        if timings is not None:
+            timings[name] = time.perf_counter() - started
         if not block.index.equals(ids):
             raise ValueError(f"El bloque '{name}' no sigue el orden de network.taxpayers.")
         blocks.append(block)

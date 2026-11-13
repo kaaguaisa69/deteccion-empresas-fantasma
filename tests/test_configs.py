@@ -35,6 +35,8 @@ def test_experiment_configs_are_valid(path: Path) -> None:
         ("evaluation", "metrics", ["accuracy"]),
         ("threshold", "strategy", "otro"),
         ("experiment", "name", "con espacios"),
+        ("evaluation", "subpopulations", {"sin_p1": []}),
+        ("evaluation", "subpopulations", {"mal nombre": ["isolated_emitter"]}),
     ],
 )
 def test_invalid_experiment_configs_are_rejected(section: str, key: str, value: object) -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -51,10 +51,12 @@ class AssembledData:
         data: vistas tabular y, si el detector la requiere, de grafo.
         patterns: patrón de fraude de cada nodo (nulo para legítimos), en el orden de ``data``. Solo lo
             usa el evaluador; queda fuera de ``ExperimentData`` para que ningún detector pueda leerlo.
+        feature_seconds: segundos que tardó cada constructor de variables, ``{constructor: segundos}``.
     """
 
     data: ExperimentData
     patterns: np.ndarray
+    feature_seconds: dict[str, float] = field(default_factory=dict)
 
 
 def load_scenario(path: Path) -> Scenario:
@@ -92,7 +94,8 @@ def assemble_experiment_data(
     """
     network = scenario.network
     context = scenario.feature_context(seed)
-    features = build_feature_set(feature_set, network, context, feature_params)
+    feature_seconds: dict[str, float] = {}
+    features = build_feature_set(feature_set, network, context, feature_params, feature_seconds)
     taxpayers = network.taxpayers.set_index("taxpayer_id")
     labels = taxpayers["is_shell"].astype(np.int64).rename("is_shell")
     graph = (
@@ -103,4 +106,5 @@ def assemble_experiment_data(
     return AssembledData(
         data=ExperimentData(features=features, labels=labels, graph=graph),
         patterns=taxpayers["pattern"].to_numpy(dtype=object),
+        feature_seconds=feature_seconds,
     )
