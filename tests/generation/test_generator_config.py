@@ -80,6 +80,9 @@ def test_config_hash_ignores_output_root(output_root: str) -> None:
         lambda raw: raw["population"].update(prevalence=0.0),
         lambda raw: raw["population"]["sectors"].update(comercio=0.5),
         lambda raw: raw["market"].update(monthly_seasonality=[1.0] * 11),
+        lambda raw: raw["shells"].update(reactivated_fraction=1.5),
+        lambda raw: raw["shells"].update(purchase_ratio_quantiles=[0.9, 0.1]),
+        lambda raw: raw["shells"].update(legit_profile_patterns=["inventado"]),
     ],
 )
 def test_invalid_configurations_are_rejected(mutate) -> None:
@@ -96,8 +99,16 @@ def test_generator_rejects_patterns_that_cannot_form_groups() -> None:
         InvoiceNetworkGenerator(GeneratorConfig.from_dict(raw))
 
 
+def test_negative_amount_surcharge_is_rejected() -> None:
+    raw = small_raw()
+    raw["patterns"]["ring"]["amount_surcharge"] = -0.1
+    with pytest.raises(ValueError, match="amount_surcharge"):
+        InvoiceNetworkGenerator(GeneratorConfig.from_dict(raw))
+
+
 def test_generator_rejects_unknown_patterns() -> None:
     raw = small_raw()
     raw["patterns"]["inventado"] = raw["patterns"].pop("chain")
+    raw["shells"]["legit_profile_patterns"] = ["ring"]
     with pytest.raises(KeyError):
         InvoiceNetworkGenerator(GeneratorConfig.from_dict(raw))

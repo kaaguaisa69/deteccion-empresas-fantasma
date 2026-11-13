@@ -58,6 +58,17 @@ def split_into_groups(
     return groups
 
 
+def _established_dates(rng: np.random.Generator, config: GeneratorConfig, n: int) -> np.ndarray:
+    """Fechas de inicio de ``n`` empresas establecidas: antigüedad exponencial truncada."""
+    population = config.population
+    period_start = np.datetime64(config.period.start, "D")
+    age_days = np.minimum(
+        rng.exponential(population.mean_age_years * DAYS_PER_YEAR, n),
+        population.max_age_years * DAYS_PER_YEAR,
+    ).astype(np.int64)
+    return period_start - np.timedelta64(1, "D") - age_days.astype("timedelta64[D]")
+
+
 def _start_dates(rng: np.random.Generator, config: GeneratorConfig, is_shell: np.ndarray) -> np.ndarray:
     """Fechas de inicio de actividades.
 
@@ -71,11 +82,7 @@ def _start_dates(rng: np.random.Generator, config: GeneratorConfig, is_shell: np
     n = is_shell.size
     period_days = int((period_end - period_start) // np.timedelta64(1, "D")) + 1
 
-    age_days = np.minimum(
-        rng.exponential(population.mean_age_years * DAYS_PER_YEAR, n),
-        population.max_age_years * DAYS_PER_YEAR,
-    ).astype(np.int64)
-    established = period_start - np.timedelta64(1, "D") - age_days.astype("timedelta64[D]")
+    established = _established_dates(rng, config, n)
     recent = period_start + rng.integers(0, period_days, n).astype("timedelta64[D]")
     starts = np.where(rng.random(n) < population.in_period_fraction, recent, established)
 
@@ -84,6 +91,37 @@ def _start_dates(rng: np.random.Generator, config: GeneratorConfig, is_shell: np
     shell_span = int((shell_latest - shell_earliest) // np.timedelta64(1, "D")) + 1
     shell_starts = shell_earliest + rng.integers(0, shell_span, n).astype("timedelta64[D]")
     return np.where(is_shell, shell_starts, starts).astype("datetime64[D]")
+
+
+def apply_legit_profile(
+    taxpayers: pd.DataFrame,
+    config: GeneratorConfig,
+    rng: np.random.Generator,
+    positions: np.ndarray,
+    company_only: bool,
+) -> None:
+    """Da a las fantasmas de ``positions`` tamaño y antigüedad como los de las empresas legítimas.
+
+    Si ``company_only``, pasan a ser sociedades. Cada una vuelve a sortear su tamaño con la mezcla
+    legítima de su tipo y, con probabilidad ``shells.reactivated_fraction``, adopta una fecha de
+    inicio de empresa establecida; las demás conservan su fecha.
+    """
+    positions = np.asarray(positions, dtype=np.int64)
+    if positions.size == 0:
+        return
+    if company_only:
+        taxpayers.loc[positions, "taxpayer_type"] = SOCIEDAD
+    types = taxpayers["taxpayer_type"].to_numpy()[positions]
+    sizes = np.empty(positions.size, dtype=object)
+    for taxpayer_type in dict.fromkeys(types):
+        mask = types == taxpayer_type
+        sizes[mask] = draw_categories(rng, config.population.sizes_by_type[taxpayer_type], int(mask.sum()))
+    taxpayers.loc[positions, "size"] = sizes
+    reactivated = rng.random(positions.size) < config.shells.reactivated_fraction
+    if reactivated.any():
+        taxpayers.loc[positions[reactivated], "start_date"] = _established_dates(
+            rng, config, int(reactivated.sum())
+        )
 
 
 def build_population(config: GeneratorConfig, rng: np.random.Generator) -> tuple[pd.DataFrame, pd.DataFrame]:

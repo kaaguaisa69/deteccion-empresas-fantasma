@@ -106,6 +106,7 @@ class FraudPattern(ABC):
     """
 
     name: ClassVar[str] = ""
+    company_only: ClassVar[bool] = False
 
     @property
     @abstractmethod
@@ -131,6 +132,52 @@ class FraudPattern(ABC):
     @abstractmethod
     def inject(self, state: GenerationState, rng: np.random.Generator) -> None:
         """Agrega al estado las facturas (y, si corresponde, los atributos) del patrón."""
+
+
+def add_proportional_purchases(
+    state: GenerationState,
+    rng: np.random.Generator,
+    shells: np.ndarray,
+    quantiles: tuple[float, float],
+) -> None:
+    """Agrega compras a proveedores legítimos para que cada fantasma compre en proporción normal a sus ventas.
+
+    Para cada fantasma se elige al azar un legítimo de su mismo tamaño con ventas y compras, se copia su
+    razón compras/ventas recortada a los cuantiles ``quantiles`` de esa razón en su tamaño, y se añaden
+    las facturas de proveedores necesarias para alcanzar las compras objetivo.
+    """
+    market = state.market
+    legit = pd.concat(state.invoices["legit"])
+    legit_sales = np.bincount(legit["issuer"], weights=legit["subtotal"], minlength=market.n)
+    legit_purchases = np.bincount(legit["receiver"], weights=legit["subtotal"], minlength=market.n)
+    reference = np.flatnonzero(market.legit & (legit_sales > 0) & (legit_purchases > 0))
+    ratio = np.zeros(market.n)
+    ratio[reference] = legit_purchases[reference] / legit_sales[reference]
+
+    fraud = pd.concat(state.invoices["fraud"])
+    sales = np.bincount(fraud["issuer"], weights=fraud["subtotal"], minlength=market.n)
+    purchases = np.bincount(fraud["receiver"], weights=fraud["subtotal"], minlength=market.n)
+
+    for shell in shells:
+        size = market.size[shell]
+        same_size = reference[market.size[reference] == size]
+        if same_size.size == 0:
+            continue
+        low, high = np.quantile(ratio[same_size], quantiles)
+        target_ratio = np.clip(ratio[rng.choice(same_size)], low, high)
+        missing = target_ratio * sales[shell] - purchases[shell]
+        if missing <= 0:
+            continue
+        n = max(1, round(missing / market.mean_amount([shell])[0]))
+        _, upper = state.window(shell)
+        suppliers = market.choose_counterparts(rng, n, market.sector[shell], upper, "supplier", replace=True)
+        state.add_invoices(
+            "fraud",
+            suppliers,
+            shell,
+            state.counterpart_dates(rng, shell, suppliers),
+            market.sample_amounts(rng, np.full(suppliers.size, shell)),
+        )
 
 
 def draw_int(rng: np.random.Generator, bounds: tuple[int, int], size: int | None = None) -> np.ndarray | int:

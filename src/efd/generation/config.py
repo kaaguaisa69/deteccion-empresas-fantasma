@@ -113,6 +113,9 @@ class ShellProfileConfig:
     sizes: dict[str, float]
     earliest_start: date
     min_active_days: int
+    legit_profile_patterns: tuple[str, ...]
+    reactivated_fraction: float
+    purchase_ratio_quantiles: tuple[float, float]
 
     def __post_init__(self) -> None:
         check_distribution(self.sectors, "shells.sectors")
@@ -120,6 +123,10 @@ class ShellProfileConfig:
         check_distribution(self.sizes, "shells.sizes")
         if self.min_active_days < 1:
             raise ValueError("'min_active_days' debe ser positivo.")
+        check_fraction(self.reactivated_fraction, "shells.reactivated_fraction")
+        low, high = self.purchase_ratio_quantiles
+        if len(self.purchase_ratio_quantiles) != 2 or not 0 <= low < high <= 1:
+            raise ValueError("'shells.purchase_ratio_quantiles' debe ser [a, b] con 0 <= a < b <= 1.")
 
 
 @dataclass(frozen=True)
@@ -222,6 +229,8 @@ class GeneratorConfig:
             raise ValueError("'shells.provinces' contiene provincias que no existen en la población.")
         if not set(self.shells.sizes) <= sizes:
             raise ValueError("'shells.sizes' contiene tamaños que no existen en la población.")
+        if not set(self.shells.legit_profile_patterns) <= set(self.patterns):
+            raise ValueError("'shells.legit_profile_patterns' contiene patrones que no existen.")
         _check_keys(self.market.sector_matrix, sectors, "sector_matrix")
         for name, row in self.market.sector_matrix.items():
             if not set(row) <= sectors:
@@ -246,6 +255,8 @@ class GeneratorConfig:
             market[name] = tuple(market[name])
         shells = dict(raw["shells"])
         shells["earliest_start"] = _as_date(shells["earliest_start"])
+        shells["legit_profile_patterns"] = tuple(shells["legit_profile_patterns"])
+        shells["purchase_ratio_quantiles"] = tuple(shells["purchase_ratio_quantiles"])
         patterns = {
             name: PatternSpec(
                 proportion=float(spec["proportion"]),

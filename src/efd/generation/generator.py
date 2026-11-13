@@ -13,7 +13,7 @@ from efd.generation.camouflage import apply_camouflage
 from efd.generation.config import GeneratorConfig
 from efd.generation.market import MarketModel
 from efd.generation.patterns import FraudPattern, GenerationState, create_pattern
-from efd.generation.population import build_population
+from efd.generation.population import apply_legit_profile, build_population
 from efd.generation.validation import validate_network
 from efd.generation.writer import build_metadata, write_scenario
 from efd.network import INVOICE_COLUMNS, REPRESENTATIVE_COLUMNS, TAXPAYER_COLUMNS, InvoiceNetwork
@@ -65,6 +65,7 @@ class InvoiceNetworkGenerator:
         rng = np.random.default_rng(config.seed)
         taxpayers, representatives = build_population(config, rng)
         self._assign_patterns(taxpayers, rng)
+        self._apply_legit_profiles(taxpayers, rng)
 
         market = MarketModel(config, taxpayers)
         state = GenerationState(
@@ -101,6 +102,12 @@ class InvoiceNetworkGenerator:
         for name, count in self.config.shell_counts().items():
             taxpayers.loc[shells[start : start + count], "pattern"] = name
             start += count
+
+    def _apply_legit_profiles(self, taxpayers: pd.DataFrame, rng: np.random.Generator) -> None:
+        """Da perfil legítimo (tamaño y antigüedad) a las fantasmas de los patrones configurados."""
+        for name in self.config.shells.legit_profile_patterns:
+            positions = np.flatnonzero(taxpayers["pattern"].to_numpy() == name)
+            apply_legit_profile(taxpayers, self.config, rng, positions, self.patterns[name].company_only)
 
     @staticmethod
     def _assemble(state: GenerationState, rng: np.random.Generator) -> InvoiceNetwork:
