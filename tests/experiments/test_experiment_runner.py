@@ -41,6 +41,7 @@ def _raw(scenario: Path) -> dict[str, Any]:
             "metrics": ["auc_pr", "auc_roc", "f1", "precision", "recall", "fpr"],
             # 1 000 supera el tamaño de cualquier pliegue de prueba (unos 667 nodos).
             "precision_at_k": [10, 1000],
+            "subpopulations": {"sin_p1": ["isolated_emitter"]},
         },
     }
 
@@ -107,11 +108,42 @@ def test_metrics_per_fold_and_summary(run_dir: Path) -> None:
     assert set(summary["recall_by_pattern"]) == {"isolated_emitter", "ring", "chain", "shared_representative"}
 
 
+def test_subpopulation_metrics(run_dir: Path) -> None:
+    metrics = _metrics(run_dir)
+    for fold in metrics["folds"]:
+        sin_p1 = fold["subpopulations"]["sin_p1"]
+        assert set(sin_p1["metrics"]) == set(fold["metrics"])
+        assert "isolated_emitter" not in sin_p1["recall_by_pattern"]
+    summary = metrics["summary"]["subpopulations"]["sin_p1"]
+    values = [fold["subpopulations"]["sin_p1"]["metrics"]["auc_pr"] for fold in metrics["folds"]]
+    assert summary["metrics"]["auc_pr"] == mean_std(values)
+    assert "isolated_emitter" not in summary["recall_by_pattern"]
+
+
+def test_feature_seconds_per_seed(run_dir: Path) -> None:
+    metrics = _metrics(run_dir)
+    assert [entry["seed"] for entry in metrics["feature_seconds"]] == [1, 2]
+    assert all(entry["transactional"] >= 0 for entry in metrics["feature_seconds"])
+    assert metrics["summary"]["feature_seconds"]["transactional"]["n"] == 2
+
+
+def test_run_without_subpopulations_has_no_such_key(written_dir: Path, tmp_path: Path) -> None:
+    raw = _raw(written_dir)
+    raw["experiment"]["seeds"] = [1]
+    del raw["evaluation"]["subpopulations"]
+    metrics = _metrics(ExperimentRunner(ExperimentConfig.from_dict(raw), tmp_path).run())
+    assert all("subpopulations" not in fold for fold in metrics["folds"])
+    assert "subpopulations" not in metrics["summary"]
+
+
 def test_same_configuration_gives_same_results(run_dir: Path, written_dir: Path, tmp_path: Path) -> None:
     again = ExperimentRunner(ExperimentConfig.from_dict(_raw(written_dir)), tmp_path).run()
     first, second = _metrics(run_dir), _metrics(again)
     assert first["folds"] == second["folds"]
-    assert first["summary"] == second["summary"]
+    # Los tiempos de cálculo varían entre corridas; lo demás debe coincidir.
+    assert {k: v for k, v in first["summary"].items() if k != "feature_seconds"} == {
+        k: v for k, v in second["summary"].items() if k != "feature_seconds"
+    }
 
 
 def test_mean_std() -> None:

@@ -79,6 +79,11 @@ Las métricas de red se calculan en `src/efd/graph/`; `src/efd/features/` solo l
 ## Evaluación
 - **Por pliegue:** AUC-PR, AUC-ROC, F1, precisión, recall, FPR y recall por patrón, con el umbral elegido
   en validación. El resumen reporta media ± desviación estándar muestral entre pliegues.
+- **Subpoblaciones (opcional):** la clave `evaluation.subpopulations` del YAML, `{nombre: [patrón excluido, ...]}`
+  (por ejemplo `sin_p1: [isolated_emitter]`), agrega por pliegue las mismas métricas y el recall por patrón
+  sin los fantasmas de esos patrones, con el mismo umbral del pliegue. Quedan en
+  `folds[i].subpopulations.<nombre>` y en `summary.subpopulations.<nombre>`; sin la clave, no aparecen.
+  No se calcula precision@k por subpoblación.
 - **precision@k, sobre las predicciones de todos los pliegues juntas, por semilla:** cada contribuyente
   está en prueba en exactamente un pliegue, así que la unión de los pliegues de prueba cubre la población
   completa (40 000 contribuyentes y 400 fantasmas en el escenario base). Se ordena por puntuación y se
@@ -101,6 +106,6 @@ Las métricas de red se calculan en `src/efd/graph/`; `src/efd/features/` solo l
 | `config.yaml` | configuración usada |
 | `scenario.json` | ruta del escenario y su `config_hash` |
 | `folds.json` | índices de nodo de cada pliegue, por semilla |
-| `metrics.json` | métricas por semilla y pliegue, precision@k por semilla y resumen |
+| `metrics.json` | métricas por semilla y pliegue, subpoblaciones (si se piden), precision@k por semilla, `feature_seconds` (segundos de cada bloque de variables, una entrada por semilla) y resumen (con `summary.subpopulations` y `summary.feature_seconds`) |
 | `predictions.parquet` | identificador, semilla, pliegue, puntuación, umbral y etiqueta de cada predicción de prueba |
 | `environment.json` | versiones de Python y de las librerías |

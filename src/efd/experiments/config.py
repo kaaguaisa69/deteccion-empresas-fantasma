@@ -18,6 +18,21 @@ from efd.models import available_detectors
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
+_SUBPOPULATIONS_ERROR = "'evaluation.subpopulations' debe ser {nombre: [patrón, ...]} con listas no vacías."
+
+
+def _parse_subpopulations(value: Any) -> dict[str, Any]:
+    """Lee ``evaluation.subpopulations``; ``ExperimentConfig`` valida cada entrada."""
+    if not value:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError(_SUBPOPULATIONS_ERROR)
+    return {
+        name: tuple(excluded) if isinstance(excluded, (list, tuple)) else excluded
+        for name, excluded in value.items()
+    }
+
+
 @dataclass(frozen=True)
 class ExperimentConfig:
     """Un experimento: un escenario, un grupo de variables, un modelo y una lista de semillas.
@@ -38,6 +53,7 @@ class ExperimentConfig:
         threshold: política de umbral (``strategy`` y sus parámetros).
         metrics: métricas registradas que se calculan por pliegue.
         precision_at_k: valores de ``k`` para precision@k sobre todos los pliegues juntos.
+        subpopulations: subpoblaciones de evaluación, ``{nombre: patrones excluidos}``; vacío si no hay.
         raw: diccionario original, que se guarda tal cual con la corrida.
     """
 
@@ -53,7 +69,8 @@ class ExperimentConfig:
     threshold: dict[str, Any]
     metrics: tuple[str, ...]
     precision_at_k: tuple[int, ...]
-    raw: dict[str, Any] = field(compare=False, repr=False)
+    subpopulations: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         if not _SAFE_NAME.match(self.name):
@@ -76,6 +93,15 @@ class ExperimentConfig:
             raise ValueError(f"Métricas desconocidas: {sorted(unknown_metrics)}.")
         if any(k < 1 for k in self.precision_at_k):
             raise ValueError("Los valores de precision_at_k deben ser positivos.")
+        for name, excluded in self.subpopulations.items():
+            if (
+                not isinstance(name, str)
+                or not _SAFE_NAME.match(name)
+                or not isinstance(excluded, (list, tuple))
+                or not excluded
+                or not all(isinstance(pattern, str) for pattern in excluded)
+            ):
+                raise ValueError(_SUBPOPULATIONS_ERROR)
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any]) -> ExperimentConfig:
@@ -95,6 +121,7 @@ class ExperimentConfig:
             threshold=dict(raw["threshold"]),
             metrics=tuple(evaluation["metrics"]),
             precision_at_k=tuple(evaluation.get("precision_at_k") or ()),
+            subpopulations=_parse_subpopulations(evaluation.get("subpopulations")),
             raw=dict(raw),
         )
 
