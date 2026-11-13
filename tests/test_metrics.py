@@ -8,6 +8,8 @@ from efd.evaluation.metrics import (
     auc_pr,
     auc_roc,
     compute_metrics,
+    compute_metrics_excluding,
+    exclusion_mask,
     f1,
     false_positive_rate,
     precision,
@@ -138,3 +140,30 @@ def test_compute_metrics_subset_and_unknown_name() -> None:
     assert set(compute_metrics(Y_TRUE, Y_SCORE, 0.5, metric_names=["auc_pr"])) == {"auc_pr"}
     with pytest.raises(KeyError):
         compute_metrics(Y_TRUE, Y_SCORE, 0.5, metric_names=["accuracy"])
+
+
+GROUPS = np.array([None, "a", "b", "a", None, None, "b", None], dtype=object)
+
+
+def test_compute_metrics_excluding_matches_manual_filter() -> None:
+    keep = np.array([True, False, True, False, True, True, True, True])
+    expected = compute_metrics(Y_TRUE[keep], Y_SCORE[keep], 0.5)
+    assert compute_metrics_excluding(Y_TRUE, Y_SCORE, 0.5, GROUPS, ["a"]) == expected
+
+
+def test_exclusion_mask_always_keeps_null_groups() -> None:
+    mask = exclusion_mask(GROUPS, ["a", "b"])
+    assert mask.dtype == bool
+    assert mask.tolist() == [True, False, False, False, True, True, False, True]
+
+
+def test_compute_metrics_excluding_empty_equals_compute_metrics() -> None:
+    expected = compute_metrics(Y_TRUE, Y_SCORE, 0.5)
+    assert compute_metrics_excluding(Y_TRUE, Y_SCORE, 0.5, GROUPS, []) == expected
+
+
+def test_compute_metrics_excluding_rejects_bad_inputs() -> None:
+    with pytest.raises(ValueError, match="Grupos a excluir que no existen"):
+        compute_metrics_excluding(Y_TRUE, Y_SCORE, 0.5, GROUPS, ["z"])
+    with pytest.raises(ValueError, match="un elemento por predicción"):
+        compute_metrics_excluding(Y_TRUE, Y_SCORE, 0.5, GROUPS[:5], ["a"])

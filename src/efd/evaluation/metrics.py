@@ -212,3 +212,59 @@ def compute_metrics(
         metric = METRICS.get(name)
         results[name] = metric.fn(y_true, y_score if metric.uses_scores else y_pred)
     return results
+
+
+def exclusion_mask(groups: np.ndarray, excluded: Iterable[str]) -> np.ndarray:
+    """Máscara de los elementos que se conservan al excluir ciertos grupos.
+
+    Args:
+        groups: grupo de cada elemento; los de grupo nulo (legítimos) siempre se conservan.
+        excluded: grupos a excluir (por ejemplo, patrones de fraude).
+
+    Returns:
+        Arreglo booleano con ``True`` para los elementos que se conservan.
+
+    Raises:
+        ValueError: si algún grupo de ``excluded`` no aparece en ``groups``.
+    """
+    groups = pd.Series(np.asarray(groups, dtype=object))
+    excluded = list(excluded)
+    missing = sorted(set(excluded) - set(groups[groups.notna()]))
+    if missing:
+        raise ValueError(f"Grupos a excluir que no existen: {missing}")
+    return ~groups.isin(excluded).to_numpy()
+
+
+def compute_metrics_excluding(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    threshold: float,
+    groups: np.ndarray,
+    excluded: Iterable[str],
+    metric_names: Sequence[str] | None = None,
+) -> dict[str, float]:
+    """Calcula las métricas registradas sin los elementos de ciertos grupos.
+
+    Aplica ``exclusion_mask`` y llama a ``compute_metrics`` sobre lo que se conserva. Con
+    ``excluded`` vacío da lo mismo que ``compute_metrics``.
+
+    Args:
+        y_true: etiquetas reales (0/1).
+        y_score: probabilidades de la clase positiva.
+        threshold: umbral elegido en validación.
+        groups: grupo de cada elemento (nulo para los legítimos).
+        excluded: grupos a excluir.
+        metric_names: métricas registradas a calcular; ``None`` calcula todas.
+
+    Returns:
+        Diccionario ``nombre -> valor``.
+
+    Raises:
+        ValueError: si ``groups`` no tiene un elemento por predicción o si algún grupo de
+            ``excluded`` no existe.
+    """
+    y_true, y_score = _check_pair(y_true, y_score, binary=False)
+    if len(groups) != y_true.size:
+        raise ValueError("'groups' debe tener un elemento por predicción.")
+    keep = exclusion_mask(groups, excluded)
+    return compute_metrics(y_true[keep], y_score[keep], threshold, metric_names)
