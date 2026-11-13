@@ -106,17 +106,23 @@ class MarketModel:
         return self.period_start + day.astype("timedelta64[D]")
 
     def sample_amounts(
-        self, rng: np.random.Generator, buyers: np.ndarray, round_fraction: float | None = None
+        self,
+        rng: np.random.Generator,
+        buyers: np.ndarray,
+        round_fraction: float | None = None,
+        surcharge: float = 0.0,
     ) -> np.ndarray:
         """Subtotales lognormales según el tamaño del comprador.
 
         Una fracción ``round_fraction`` (por defecto, la de la configuración) se redondea a montos
-        redondos, como ocurre también en el comercio legítimo.
+        redondos, como ocurre también en el comercio legítimo. ``surcharge`` multiplica el monto por
+        ``1 + surcharge`` antes de redondear.
         """
         market = self.config.market
         buyers = np.asarray(buyers, dtype=np.int64)
         amounts = np.round(
-            np.exp(
+            (1.0 + surcharge)
+            * np.exp(
                 self.log_mean[self.size[buyers]] + market.amount_log_sigma * rng.standard_normal(buyers.size)
             ),
             2,
@@ -126,6 +132,11 @@ class MarketModel:
         is_round = rng.random(buyers.size) < fraction
         amounts[is_round] = round_to_multiples(rng, amounts[is_round], market.round_multiples)
         return amounts
+
+    def mean_amount(self, positions: np.ndarray) -> np.ndarray:
+        """Media teórica del subtotal lognormal de cada posición según su tamaño."""
+        sigma = self.config.market.amount_log_sigma
+        return np.exp(self.log_mean[self.size[np.asarray(positions, dtype=np.int64)]] + sigma**2 / 2)
 
     def choose_counterparts(
         self,

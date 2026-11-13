@@ -19,6 +19,7 @@ class SharedRepresentativePattern(FraudPattern):
     """
 
     name = "shared_representative"
+    company_only = True
 
     def __init__(
         self,
@@ -28,6 +29,7 @@ class SharedRepresentativePattern(FraudPattern):
         invoices_per_beneficiary: list[int],
         suppliers_per_member: list[int],
         invoices_per_supplier: list[int],
+        amount_surcharge: float,
     ) -> None:
         """
         Args:
@@ -37,6 +39,7 @@ class SharedRepresentativePattern(FraudPattern):
             invoices_per_beneficiary: rango de facturas a cada beneficiario.
             suppliers_per_member: rango de proveedores legítimos de cada miembro.
             invoices_per_supplier: rango de facturas recibidas de cada proveedor.
+            amount_surcharge: recargo relativo sobre el monto legítimo de las ventas a beneficiarios.
         """
         self._group_size = tuple(group_size)
         self.shared_beneficiaries = tuple(shared_beneficiaries)
@@ -44,6 +47,9 @@ class SharedRepresentativePattern(FraudPattern):
         self.invoices_per_beneficiary = tuple(invoices_per_beneficiary)
         self.suppliers_per_member = tuple(suppliers_per_member)
         self.invoices_per_supplier = tuple(invoices_per_supplier)
+        if amount_surcharge < 0:
+            raise ValueError("'amount_surcharge' no puede ser negativo.")
+        self.amount_surcharge = amount_surcharge
         check_int_range(self._group_size, "group_size", minimum=2)
         check_int_range(self.shared_beneficiaries, "shared_beneficiaries", minimum=1)
         check_int_range(self.beneficiaries_per_member, "beneficiaries_per_member", minimum=1)
@@ -77,7 +83,7 @@ class SharedRepresentativePattern(FraudPattern):
                     member,
                     receivers,
                     state.counterpart_dates(rng, member, receivers),
-                    market.sample_amounts(rng, receivers),
+                    market.sample_amounts(rng, receivers, surcharge=self.amount_surcharge),
                 )
 
                 suppliers = market.choose_counterparts(

@@ -5,7 +5,12 @@ from __future__ import annotations
 import numpy as np
 
 from efd.generation.config import check_int_range
-from efd.generation.patterns.base import FraudPattern, GenerationState, draw_int
+from efd.generation.patterns.base import (
+    FraudPattern,
+    GenerationState,
+    add_proportional_purchases,
+    draw_int,
+)
 from efd.generation.patterns.registry import register_pattern
 
 
@@ -23,8 +28,7 @@ class ChainPattern(FraudPattern):
         self,
         hops: list[int],
         operations: list[int],
-        amount_log_mean: float,
-        amount_log_sigma: float,
+        amount_surcharge: float,
         margin: float,
         max_gap_days: int,
     ) -> None:
@@ -32,8 +36,7 @@ class ChainPattern(FraudPattern):
         Args:
             hops: rango de saltos por cadena; cada cadena tiene tantas fantasmas como saltos.
             operations: rango de operaciones completas de la cadena en el período.
-            amount_log_mean: media del logaritmo del monto inicial de cada operación.
-            amount_log_sigma: desviación del logaritmo del monto inicial.
+            amount_surcharge: recargo relativo sobre el monto legítimo inicial de cada operación.
             margin: margen relativo que añade cada salto.
             max_gap_days: días máximos entre saltos consecutivos.
         """
@@ -43,8 +46,9 @@ class ChainPattern(FraudPattern):
         check_int_range(self.operations, "operations", minimum=1)
         if max_gap_days < 1:
             raise ValueError("'max_gap_days' debe ser positivo.")
-        self.amount_log_mean = amount_log_mean
-        self.amount_log_sigma = amount_log_sigma
+        if amount_surcharge < 0:
+            raise ValueError("'amount_surcharge' no puede ser negativo.")
+        self.amount_surcharge = amount_surcharge
         self.margin = margin
         self.max_gap_days = max_gap_days
 
@@ -70,7 +74,9 @@ class ChainPattern(FraudPattern):
             beneficiaries = market.choose_counterparts(
                 rng, n_operations, market.sector[members[-1]], lower, "buyer", replace=True
             )
-            amounts = rng.lognormal(self.amount_log_mean, self.amount_log_sigma, n_operations)
+            amounts = market.sample_amounts(
+                rng, np.full(n_operations, members[1]), surcharge=self.amount_surcharge
+            )
             for hop in range(hops):
                 receiver = members[hop + 1] if hop + 1 < hops else beneficiaries
                 state.add_invoices(
@@ -80,3 +86,6 @@ class ChainPattern(FraudPattern):
                     starts + offsets[:, hop].astype("timedelta64[D]"),
                     np.round(amounts * (1 + self.margin) ** hop, 2),
                 )
+        add_proportional_purchases(
+            state, rng, state.shells_of(self.name), state.config.shells.purchase_ratio_quantiles
+        )

@@ -44,11 +44,12 @@ falsas, son contribuyentes legítimos y no se etiquetan.
 | Patrón | Comportamiento | Proporción |
 |---|---|---|
 | P1 Emisor aislado | Vida corta (3–9 meses), vende sin compras proporcionales, montos redondos, muchos clientes beneficiarios | 40 % |
-| P2 Anillo circular | Grupos de 3–6 fantasmas que se facturan en ciclo | 20 % |
-| P3 Cadena de intermediarios | Fantasma → fantasma → beneficiario, de 2 a 4 saltos | 20 % |
-| P4 Representante compartido | Grupos de 3–5 fantasmas con el mismo representante legal | 20 % |
+| P2 Anillo circular | Grupos de 3–6 fantasmas que se facturan en ciclo; tamaño y antigüedad como legítimos (mitad reactivadas), montos legítimos con recargo, compras a proveedores legítimos en proporción normal | 20 % |
+| P3 Cadena de intermediarios | Fantasma → fantasma → beneficiario, de 2 a 4 saltos; tamaño y antigüedad como legítimos (mitad reactivadas), montos legítimos con recargo, compras a proveedores legítimos en proporción normal | 20 % |
+| P4 Representante compartido | Grupos de 3–5 fantasmas con el mismo representante legal; tamaño y antigüedad como legítimos (mitad reactivadas), montos legítimos con recargo | 20 % |
 
-P1 deja señal tabular fuerte; P2, P3 y P4 dejan señal principalmente relacional. Los resultados se reportan
+P1 deja señal tabular fuerte; P2, P3 y P4 dejan señal principalmente relacional (ver "Recalibración v2" para
+los cambios de perfil de P2 a P4). Los resultados se reportan
 por patrón para evidenciar qué enfoque detecta cada uno.
 
 ## Camuflaje
@@ -109,12 +110,56 @@ según el sistema operativo.
 
 `is_shell` y `pattern` son etiquetas: ningún módulo de variables puede usarlas como entrada.
 
+## Recalibración v2
+La v1 del generador (`config_hash b465da7f…`) se sometió a una prueba de dificultad: Random Forest con las
+variables G1, 5 pliegues y semilla 42, sobre el escenario base. Resultado: AUC-PR 0,9983; recall de P2 0,986,
+de P3 0,909 y de P4 0,864. Según la regla de decisión fijada antes de correrla, la v1 resultó "demasiado fácil".
+
+Los rasgos que separaban a las fantasmas de las legítimas eran artefactos del generador, no del fenómeno
+(valores medios, legítimas vs fantasmas):
+- antigüedad: 3 020 vs 455 días;
+- monto de venta relativo al de legítimos del mismo sector y tamaño: 1,18 vs 7,05;
+- razón compras/ventas, en log((1+compras)/(1+ventas)): 3,60 vs −2,57.
+
+La v2 cambia el perfil de P2, P3 y P4 en tres aspectos; P1 queda sin cambios (`isolated_emitter.py`, el bloque
+`patterns.isolated_emitter` y `shells.sizes` idénticos). Sus facturas concretas sí varían, porque cambia la
+secuencia aleatoria, pero no sus reglas.
+
+1. **Tamaño y antigüedad como legítimos.** Los patrones de `shells.legit_profile_patterns` (`ring`, `chain`,
+   `shared_representative`) vuelven a sortear el tamaño con `population.sizes_by_type`: P4 con el tipo
+   `sociedad`, P2 y P3 con su propio tipo, para no crear la combinación persona natural + grande, que ningún
+   legítimo tiene. Con probabilidad `shells.reactivated_fraction` (0,5) la fantasma es una empresa antigua
+   reactivada, con fecha de inicio anterior al período y edad exponencial truncada (`mean_age_years`,
+   `max_age_years`), igual que los legítimos establecidos; el resto conserva la fecha reciente. El perfil se
+   aplica antes de crear el modelo de mercado, que copia tamaño y fecha de inicio.
+2. **Montos legítimos con recargo.** Se usa la misma regla que el mercado legítimo (`MarketModel.sample_amounts`,
+   dependiente del tamaño del comprador e incluido el porcentaje de montos redondos) multiplicada por
+   `1 + amount_surcharge`, con `amount_surcharge: 0.20` en `ring`, `chain` y `shared_representative`
+   (supuesto de diseño). Se retiran `amount_log_mean` y `amount_log_sigma` de `ring` y `chain`. Se usa el tamaño
+   del comprador y no el del emisor porque el rasgo que delataba compara con legítimos del mismo sector y
+   tamaño, cuyos montos de venta dependen del tamaño de sus compradores.
+3. **Compras en proporción normal (P2 y P3).** Para cada fantasma se elige un legítimo del mismo tamaño con
+   ventas y compras positivas, se copia su razón compras/ventas y se recorta a los cuantiles
+   `shells.purchase_ratio_quantiles` (`[0.10, 0.90]`) de esa razón en su tamaño. Si las compras ya recibidas no
+   alcanzan la razón por las ventas de la fantasma, se agregan facturas de proveedores legítimos, de tipo
+   `fraud` y sin recargo, hasta aproximarla.
+
+Reglas de la recalibración:
+- La decisión usa la misma regla que la v1, sobre las medias de los 5 pliegues: demasiado fácil si
+  `auc_pr ≥ 0,95` o si el recall es ≥ 0,90 en P2, P3 y P4 a la vez; demasiado difícil si `auc_pr ≤ 0,30`;
+  adecuado en otro caso. Si solo uno o dos patrones superan 0,90, el veredicto no cambia, pero se reporta por
+  patrón.
+- Máximo dos recalibraciones. Si tras la segunda el resultado sigue fuera de rango, se reporta como hallazgo y
+  no se ajusta más.
+- Los parámetros nuevos son supuestos de diseño y quedan marcados como tales en `configs/generator.yaml`.
+
 ## Reproducibilidad
 Dentro de un mismo entorno, la misma semilla y la misma configuración producen archivos idénticos byte a byte:
 se comprobó generando el escenario base en procesos separados y con distintos valores de `PYTHONHASHSEED`.
 
 Entre entornos distintos no se garantiza, porque numpy no asegura la misma secuencia de números aleatorios entre
-versiones. Con `config_hash b465da7f…` y semilla 42, numpy 2.5.3 produce 1 995 109 facturas y 9 325
+versiones. Las cifras de facturas y representantes que siguen corresponden a la v1; la v2 cambia la
+configuración y por tanto su `config_hash` y sus conteos. Con `config_hash b465da7f…` y semilla 42, numpy 2.5.3 produce 1 995 109 facturas y 9 325
 representantes, y numpy 2.4.6 produce 1 995 368 facturas y 9 324 representantes; el cambio de pandas
 (3.0.6 / 3.1.1) no altera el resultado. Por eso el entorno de referencia está fijado en `requirements.txt`
 (Python 3.13.14) y `metadata.json` registra las versiones con que se generó cada escenario. Los resultados

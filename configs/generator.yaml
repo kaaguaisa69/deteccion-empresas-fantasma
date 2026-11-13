@@ -1,5 +1,6 @@
 # Escenario base del generador de la red sintética de facturación electrónica.
 # Prevalencia 1 %, camuflaje medio, semilla 42 (docs/generator_design.md).
+# Recalibración v2 (P2–P4): ver docs/generator_design.md, sección "Recalibración v2".
 #
 # Todo valor marcado "supuesto de diseño" no proviene de una fuente. Los que además indican
 # (generator_design.md) son decisiones del documento de diseño. Las distribuciones de las fantasmas por
@@ -80,9 +81,12 @@ shells:
     construccion: 0.15
     transporte: 0.10
     manufactura: 0.10
-  sizes: {micro: 0.85, pequena: 0.15}     # supuesto de diseño
+  sizes: {micro: 0.85, pequena: 0.15}     # supuesto de diseño: solo P1; los patrones de legit_profile_patterns usan sizes_by_type
   earliest_start: 2023-01-01              # supuesto de diseño: P2, P3 y P4 inician desde esta fecha
   min_active_days: 90                     # supuesto de diseño: días mínimos de actividad en el período
+  legit_profile_patterns: [ring, chain, shared_representative]   # supuesto de diseño (recalibración v2): tamaño y antigüedad como legítimos
+  reactivated_fraction: 0.5               # supuesto de diseño (recalibración v2): fracción de P2–P4 que son empresas antiguas reactivadas
+  purchase_ratio_quantiles: [0.10, 0.90]  # supuesto de diseño (recalibración v2): recorte de la razón compras/ventas de P2 y P3
 
 market:
   invoices_per_taxpayer: 50               # supuesto de diseño (generator_design.md)
@@ -133,8 +137,7 @@ patterns:
     proportion: 0.20                      # supuesto de diseño (generator_design.md)
     group_size: [3, 6]                    # supuesto de diseño (generator_design.md)
     rounds: [4, 12]                       # supuesto de diseño
-    amount_log_mean: 8.5                  # supuesto de diseño
-    amount_log_sigma: 0.7                 # supuesto de diseño
+    amount_surcharge: 0.20                # supuesto de diseño (recalibración v2): recargo sobre el monto legítimo
     amount_jitter: 0.05                   # supuesto de diseño
     beneficiaries_per_member: [1, 3]      # supuesto de diseño
     invoices_per_beneficiary: [1, 2]      # supuesto de diseño
@@ -142,8 +145,7 @@ patterns:
     proportion: 0.20                      # supuesto de diseño (generator_design.md)
     hops: [2, 4]                          # supuesto de diseño (generator_design.md)
     operations: [3, 10]                   # supuesto de diseño
-    amount_log_mean: 8.5                  # supuesto de diseño
-    amount_log_sigma: 0.7                 # supuesto de diseño
+    amount_surcharge: 0.20                # supuesto de diseño (recalibración v2): recargo sobre el monto legítimo
     margin: 0.03                          # supuesto de diseño
     max_gap_days: 5                       # supuesto de diseño
   shared_representative:                  # P4
@@ -154,6 +156,7 @@ patterns:
     invoices_per_beneficiary: [1, 3]      # supuesto de diseño
     suppliers_per_member: [1, 3]          # supuesto de diseño
     invoices_per_supplier: [1, 3]         # supuesto de diseño
+    amount_surcharge: 0.20                # supuesto de diseño (recalibración v2): recargo sobre el monto legítimo
 
 camouflage:
   level: medio                            # supuesto de diseño (generator_design.md)
