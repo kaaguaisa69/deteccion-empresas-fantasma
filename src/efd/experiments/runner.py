@@ -9,6 +9,7 @@ semilla sobre las predicciones de prueba de todos los pliegues. Solo depende de 
 from __future__ import annotations
 
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from efd.evaluation.metrics import (
+    auc_pr,
     compute_metrics,
     compute_metrics_excluding,
     exclusion_mask,
@@ -83,6 +85,9 @@ def summarize(
         summary["feature_seconds"] = {
             builder: mean_std([entry[builder] for entry in feature_seconds]) for builder in builders
         }
+    if "tuning" in fold_results[0]:
+        counts = Counter(result["tuning"]["selected"] for result in fold_results)
+        summary["tuning"] = {"selected_counts": {str(index): counts[index] for index in sorted(counts)}}
     return summary
 
 
@@ -173,9 +178,8 @@ class ExperimentRunner:
 
         seed_predictions = []
         for fold in folds:
-            detector = create_detector(config.model_name, seed=seed, **config.model_params)
-            detector.fit(data, fold.train_idx, fold.val_idx)
-            threshold = policy.select(y[fold.val_idx], detector.predict_proba(data, fold.val_idx))
+            detector, val_scores, tuning = self._fit_best(data, seed, fold)
+            threshold = policy.select(y[fold.val_idx], val_scores)
             scores = detector.predict_proba(data, fold.test_idx)
             y_test = y[fold.test_idx]
             test_patterns = patterns[fold.test_idx]
@@ -199,6 +203,8 @@ class ExperimentRunner:
                             y_test[kept], predicted[kept], test_patterns[kept]
                         ),
                     }
+            if tuning is not None:
+                fold_result["tuning"] = tuning
             fold_results.append(fold_result)
             seed_predictions.append(
                 pd.DataFrame(
@@ -213,6 +219,36 @@ class ExperimentRunner:
                 )
             )
         return pd.concat(seed_predictions, ignore_index=True)
+
+    def _fit_best(self, data: Any, seed: int, fold: Any) -> tuple[Any, np.ndarray, dict[str, Any] | None]:
+        """Entrena un detector por combinación y conserva el de mayor AUC-PR en validación.
+
+        Sin ``model.grid`` entrena un solo detector con ``model.params``. Los empates se resuelven por el
+        índice menor y los datos de prueba no intervienen.
+
+        Returns:
+            El detector elegido (ya entrenado), sus puntuaciones de validación y el registro ``tuning``
+            (``None`` si no hay rejilla).
+        """
+        config = self.config
+        val_idx = fold.val_idx
+        if not config.model_grid:
+            detector = create_detector(config.model_name, seed=seed, **config.model_params)
+            detector.fit(data, fold.train_idx, val_idx)
+            return detector, detector.predict_proba(data, val_idx), None
+        best: tuple[Any, np.ndarray] | None = None
+        val_auc_pr: list[float] = []
+        selected = 0
+        for index, combo in enumerate(config.model_grid):
+            detector = create_detector(config.model_name, seed=seed, **{**config.model_params, **combo})
+            detector.fit(data, fold.train_idx, val_idx)
+            val_scores = detector.predict_proba(data, val_idx)
+            val_auc_pr.append(auc_pr(data.y[val_idx], val_scores))
+            if best is None or val_auc_pr[index] > val_auc_pr[selected]:
+                best, selected = (detector, val_scores), index
+        assert best is not None
+        tuning = {"selected": selected, "params": dict(config.model_grid[selected]), "val_auc_pr": val_auc_pr}
+        return best[0], best[1], tuning
 
     @staticmethod
     def _scenario_info(scenario: Scenario) -> dict[str, Any]:

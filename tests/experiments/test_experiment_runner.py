@@ -6,14 +6,17 @@ import json
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import pytest
 import yaml
 
+from efd.data import ExperimentData
 from efd.evaluation.metrics import precision_at_k
 from efd.experiments import ExperimentConfig, ExperimentRunner
 from efd.experiments.__main__ import main
 from efd.experiments.runner import mean_std
+from efd.models import BaseDetector, register_detector
 
 RUN_FILES = (
     "config.yaml",
@@ -23,6 +26,25 @@ RUN_FILES = (
     "predictions.parquet",
     "environment.json",
 )
+
+
+@register_detector
+class _TuningProbe(BaseDetector):
+    """Puntúa como la etiqueta en validación y al revés en prueba (``quality="val"``), o viceversa."""
+
+    name = "tuning_probe_test"
+
+    def __init__(self, seed: int, quality: str = "val", tag: int = 0) -> None:
+        self.quality = quality
+        self.val_idx = np.empty(0, dtype=int)
+
+    def _fit(self, data: ExperimentData, train_idx: np.ndarray, val_idx: np.ndarray) -> None:
+        self.val_idx = np.asarray(val_idx)
+
+    def _predict_proba(self, data: ExperimentData, idx: np.ndarray) -> np.ndarray:
+        y = data.y[idx].astype(float)
+        on_validation = np.array_equal(idx, self.val_idx)
+        return y if on_validation == (self.quality == "val") else 1.0 - y
 
 
 def _raw(scenario: Path) -> dict[str, Any]:
@@ -149,6 +171,58 @@ def test_same_configuration_gives_same_results(run_dir: Path, written_dir: Path,
 def test_mean_std() -> None:
     assert mean_std([1.0, 3.0]) == {"mean": 2.0, "std": pytest.approx(2**0.5), "n": 2}
     assert mean_std([0.5]) == {"mean": 0.5, "std": None, "n": 1}
+
+
+GRID = [{"max_features": "sqrt"}, {"max_features": 0.5}]
+
+
+@pytest.fixture(scope="module")
+def tuned_metrics(written_dir: Path, tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
+    raw = _raw(written_dir)
+    raw["model"]["grid"] = GRID
+    return _metrics(ExperimentRunner(ExperimentConfig.from_dict(raw), tmp_path_factory.mktemp("runs")).run())
+
+
+def test_tuning_selects_best_validation_auc_pr(tuned_metrics: dict[str, Any]) -> None:
+    for fold in tuned_metrics["folds"]:
+        tuning = fold["tuning"]
+        values = tuning["val_auc_pr"]
+        assert len(values) == 2
+        assert tuning["selected"] == values.index(max(values))  # index() da el menor en un empate
+        assert tuning["params"] == GRID[tuning["selected"]]
+    counts = tuned_metrics["summary"]["tuning"]["selected_counts"]
+    assert sum(counts.values()) == len(tuned_metrics["folds"])
+    assert list(counts) == sorted(counts)
+
+
+def test_run_without_grid_has_no_tuning(run_dir: Path) -> None:
+    metrics = _metrics(run_dir)
+    assert all("tuning" not in fold for fold in metrics["folds"])
+    assert "tuning" not in metrics["summary"]
+
+
+def _probe_metrics(written_dir: Path, tmp_path: Path, grid: list[dict[str, Any]]) -> dict[str, Any]:
+    raw = _raw(written_dir)
+    raw["experiment"]["seeds"] = [1]
+    raw["model"] = {"name": "tuning_probe_test", "grid": grid}
+    return _metrics(ExperimentRunner(ExperimentConfig.from_dict(raw), tmp_path).run())
+
+
+def test_tuning_ties_choose_lowest_index(written_dir: Path, tmp_path: Path) -> None:
+    metrics = _probe_metrics(
+        written_dir, tmp_path, [{"quality": "val", "tag": 0}, {"quality": "val", "tag": 1}]
+    )  # ambas puntúan igual
+    assert all(fold["tuning"]["selected"] == 0 for fold in metrics["folds"])
+    assert all(len(set(fold["tuning"]["val_auc_pr"])) == 1 for fold in metrics["folds"])
+
+
+def test_tuning_does_not_use_the_test_partition(written_dir: Path, tmp_path: Path) -> None:
+    metrics = _probe_metrics(written_dir, tmp_path, [{"quality": "test"}, {"quality": "val"}])
+    for fold in metrics["folds"]:
+        assert fold["tuning"]["selected"] == 1
+        assert fold["tuning"]["val_auc_pr"][1] > fold["tuning"]["val_auc_pr"][0]
+        # La combinación 0 habría ganado en prueba; la elegida (1) puntúa al revés allí.
+        assert fold["metrics"]["auc_pr"] < 0.5
 
 
 def test_command_line(written_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:

@@ -18,6 +18,8 @@ from efd.models import available_detectors
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
+MAX_GRID_SIZE = 12
+_GRID_ERROR = f"'model.grid' debe ser una lista de 1 a {MAX_GRID_SIZE} combinaciones distintas y no vacías."
 _SUBPOPULATIONS_ERROR = "'evaluation.subpopulations' debe ser {nombre: [patrón, ...]} con listas no vacías."
 
 
@@ -31,6 +33,15 @@ def _parse_subpopulations(value: Any) -> dict[str, Any]:
         name: tuple(excluded) if isinstance(excluded, (list, tuple)) else excluded
         for name, excluded in value.items()
     }
+
+
+def _parse_grid(value: Any) -> tuple[Any, ...]:
+    """Lee ``model.grid``; ausente da ``()``. Una lista vacía o de otro tipo es un error."""
+    if value is None:
+        return ()
+    if not isinstance(value, (list, tuple)) or not value:
+        raise ValueError(_GRID_ERROR)
+    return tuple(value)
 
 
 @dataclass(frozen=True)
@@ -47,6 +58,8 @@ class ExperimentConfig:
         seeds: semillas de las repeticiones.
         model_name: detector registrado.
         model_params: hiperparámetros del detector.
+        model_grid: combinaciones de ``model.grid``; cada una se fusiona sobre ``model_params`` y el
+            orquestador elige la mejor por AUC-PR en validación. Vacío si no hay rejilla.
         feature_params: parámetros por constructor de variables.
         n_splits: número de pliegues.
         val_size: fracción de los nodos fuera de prueba reservada para validación.
@@ -70,6 +83,7 @@ class ExperimentConfig:
     metrics: tuple[str, ...]
     precision_at_k: tuple[int, ...]
     subpopulations: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    model_grid: tuple[dict[str, Any], ...] = ()
     raw: dict[str, Any] = field(default_factory=dict, compare=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -77,6 +91,13 @@ class ExperimentConfig:
             raise ValueError("El nombre del experimento solo admite letras, dígitos, '_', '-' y '.'.")
         if self.feature_set not in FEATURE_SETS:
             raise ValueError(f"Grupo de variables desconocido: '{self.feature_set}'.")
+        combos = list(self.model_grid)
+        if combos and (
+            len(combos) > MAX_GRID_SIZE
+            or not all(isinstance(combo, Mapping) and combo for combo in combos)
+            or any(combos[i] == combos[j] for i in range(len(combos)) for j in range(i))
+        ):
+            raise ValueError(_GRID_ERROR)
         if not self.seeds or any(
             isinstance(seed, bool) or not isinstance(seed, int) or seed < 0 for seed in self.seeds
         ):
@@ -122,6 +143,7 @@ class ExperimentConfig:
             metrics=tuple(evaluation["metrics"]),
             precision_at_k=tuple(evaluation.get("precision_at_k") or ()),
             subpopulations=_parse_subpopulations(evaluation.get("subpopulations")),
+            model_grid=_parse_grid(raw["model"].get("grid")),
             raw=dict(raw),
         )
 

@@ -44,3 +44,27 @@ def test_invalid_experiment_configs_are_rejected(section: str, key: str, value: 
     raw[section][key] = value
     with pytest.raises(ValueError):
         ExperimentConfig.from_dict(raw)
+
+
+@pytest.mark.parametrize(
+    "grid",
+    [
+        [],
+        [{"max_features": 0.1 + i / 100} for i in range(13)],
+        [{"max_features": "sqrt"}, {}],
+        [{"max_features": "sqrt"}, {"max_features": "sqrt"}],
+        ["sqrt"],
+    ],
+    ids=["vacia", "trece", "elemento_vacio", "repetidos", "no_diccionario"],
+)
+def test_invalid_model_grid_is_rejected(grid: object) -> None:
+    raw = yaml.safe_load(CONFIG_FILES[0].read_text(encoding="utf-8"))
+    raw["model"]["grid"] = grid
+    with pytest.raises(ValueError, match="model.grid"):
+        ExperimentConfig.from_dict(raw)
+
+
+def test_model_grid_accepts_up_to_twelve_combinations() -> None:
+    raw = yaml.safe_load(CONFIG_FILES[0].read_text(encoding="utf-8"))
+    raw["model"]["grid"] = [{"min_samples_leaf": i + 1} for i in range(12)]
+    assert len(ExperimentConfig.from_dict(raw).model_grid) == 12
