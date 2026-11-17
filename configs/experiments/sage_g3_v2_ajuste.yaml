@@ -1,0 +1,47 @@
+# G3: GraphSAGE con las variables de G1 como atributos de nodo, sobre el HeteroData de la v2, 3 semillas, con ajuste de hiperparámetros; métricas globales y sin P1.
+# Ajuste: la combinación de cada partición se elige por AUC-PR en validación (≤ 12, decisión 2026-11-13).
+
+experiment:
+  name: sage_g3_v2_ajuste
+  scenario: data/synthetic/prev1_medio_s42   # generado con python -m efd.generation
+  feature_set: G1                            # G1 = transactional; G2 = transactional + structural
+  seeds: [42, 43, 44]                        # cada semilla repite el k-fold completo
+
+model:
+  name: graphsage
+  params:
+    dropout: 0.5                             # supuesto de diseño
+    weight_decay: 0.0005                     # supuesto de diseño
+    epochs: 200                              # supuesto de diseño
+    patience: 20                             # supuesto de diseño; parada temprana con aucpr en validación
+    num_threads: 6                           # hilos fijos para reproducibilidad (D6)
+  # supuesto de diseño: lista fija aprobada el 2026-11-16 antes de correr
+  grid:
+    - {hidden_channels: 64, num_layers: 2, lr: 0.01}
+    - {hidden_channels: 64, num_layers: 2, lr: 0.005}
+    - {hidden_channels: 64, num_layers: 3, lr: 0.01}
+    - {hidden_channels: 64, num_layers: 3, lr: 0.005}
+    - {hidden_channels: 128, num_layers: 2, lr: 0.01}
+    - {hidden_channels: 128, num_layers: 2, lr: 0.005}
+    - {hidden_channels: 128, num_layers: 3, lr: 0.01}
+    - {hidden_channels: 128, num_layers: 3, lr: 0.005}
+    - {hidden_channels: 256, num_layers: 2, lr: 0.01}
+    - {hidden_channels: 256, num_layers: 2, lr: 0.005}
+    - {hidden_channels: 256, num_layers: 3, lr: 0.01}
+    - {hidden_channels: 256, num_layers: 3, lr: 0.005}
+
+features:
+  transactional:
+    round_multiple: 100                      # monto redondo = múltiplo de 100 (docs/features_design.md)
+
+splits:
+  n_splits: 5                                # k-fold estratificado sobre nodos
+  val_size: 0.2                              # fracción de los nodos fuera de prueba para validación
+
+threshold:
+  strategy: max_f1                           # umbral que maximiza F1 en validación
+
+evaluation:
+  metrics: [auc_pr, auc_roc, f1, precision, recall, fpr]   # por pliegue
+  precision_at_k: [100, 200, 400]                          # sobre los pliegues juntos, por semilla
+  subpopulations: {sin_p1: [isolated_emitter]}   # población de H1 (bitácora 2026-11-13)

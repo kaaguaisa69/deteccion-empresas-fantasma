@@ -67,7 +67,7 @@ Las métricas de red se calculan en `src/efd/graph/`; `src/efd/features/` solo l
   primera y la última fecha normalizadas a [0, 1] dentro del período.
 - **Aristas de representación:** `(representative, represents, taxpayer)` y su inversa `(taxpayer,
   represented_by, representative)`.
-- **Escalado:** al entrenar las GNN, el escalado de las variables de los nodos `taxpayer` se ajustará solo
+- **Escalado:** al entrenar las GNN, el escalado de las variables de los nodos `taxpayer` se ajusta solo
   con los nodos de entrenamiento de cada pliegue.
 
 ## Modelos tabulares
@@ -75,6 +75,45 @@ Las métricas de red se calculan en `src/efd/graph/`; `src/efd/features/` solo l
   partición de validación no se usa para entrenar.
 - **`xgboost`:** `XGBClassifier`. Si el YAML no fija `scale_pos_weight`, se calcula como negativos ÷
   positivos de entrenamiento. La partición de validación se usa para la parada temprana con `aucpr`.
+
+## Modelos neuronales (G3 y control MLP)
+- **D1 — Variables de nodo:** las variables de G1 (`feature_set: G1`) son los atributos de los nodos `taxpayer`
+  en G3 y las entradas del MLP. Así, G3 frente a G1 aísla el aporte del grafo, y G3 frente a G2 compara el grafo
+  aprendido con las métricas de red hechas a mano.
+- **D2 — Preprocesamiento de nodos:** primero, una transformación fija sin ajuste, `signo(x)·log(1+|x|)`, porque
+  hay montos de hasta 10⁸. Después, estandarización con la media y la desviación de los nodos de entrenamiento;
+  una desviación de 0 se toma como 1. Supuesto de diseño.
+- **D3 — Atributos de arista de GAT:** las cuatro columnas de `edge_attr` son el número de facturas (con
+  `log(1+x)`), el monto ya guardado como `log(1+monto)`, y la primera y la última fecha en [0, 1]. Las cuatro se
+  estandarizan con todas las aristas. Las aristas no llevan etiquetas, así que no hay fuga, y el grafo completo
+  es observable en el modo transductivo. Supuesto de diseño. GraphSAGE no lee `edge_attr`.
+- **D4 — Arquitectura:**
+  - Una proyección lineal por tipo de nodo a la dimensión oculta (`taxpayer` 60 → h; `representative` 1 → h).
+  - Después, `num_layers` capas `HeteroConv(aggr="sum")` sobre los 4 tipos de arista, cada una con activación y
+    dropout: ReLU en GraphSAGE y ELU en GAT.
+  - GraphSAGE usa `SAGEConv((-1, -1), h, aggr="mean")` con su raíz propia.
+  - GAT usa `GATConv((-1, -1), hidden_channels, heads, concat=True, add_self_loops=False)`, con `edge_dim=4` en
+    las aristas de factura y sin `edge_dim` en las de representación. Lleva además un término raíz lineal por
+    tipo de nodo, porque sin lazos propios el nodo perdería su información. Su dimensión oculta es
+    `heads × hidden_channels`.
+  - Al final, una capa lineal h → 1 sobre `taxpayer` produce el logit.
+  - El MLP tiene `num_layers` capas lineales, de 60 → h hasta h → 1, con ReLU y dropout entre ellas.
+  - Inicialización perezosa: `SAGEConv` y `GATConv` crean sus pesos en la primera pasada. `HeteroGNN` hace esa
+    pasada con `torch.no_grad()`, después de `torch.manual_seed(seed)` y antes de crear Adam.
+  - Capacidad: con el mismo `num_layers`, el MLP tiene menos capas y no hace mensajes, así que su capacidad no
+    es igual a la de las GNN.
+- **D5 — Entrenamiento:**
+  - Grafo completo en cada época, con un paso de Adam (`lr`, `weight_decay`).
+  - Pérdida `BCEWithLogitsLoss` con `pos_weight` = legítimos ÷ fantasmas de entrenamiento, calculada solo sobre
+    los nodos de entrenamiento.
+  - Al final de cada época, AUC-PR de validación en modo `eval`. Si supera estrictamente al mejor, se guardan
+    los pesos de esa época.
+  - Parada temprana tras 20 épocas sin mejora, o al llegar a `epochs`. Al terminar se restauran los mejores pesos.
+  - Las etiquetas se leen solo desde `data.y`.
+- **D6 — Cómputo:** CPU, no GPU. Con `torch.use_deterministic_algorithms(True)`, `torch.manual_seed(seed)` al
+  inicio de cada ajuste y `num_threads` fijo (`torch.set_num_threads`), la misma semilla da el mismo resultado en
+  el mismo equipo y entorno. La clave `torch_num_threads` de `metrics.json` registra los hilos usados. Limitación:
+  entre equipos o con otro número de hilos, los decimales pueden diferir.
 
 ## Evaluación
 - **Por pliegue:** AUC-PR, AUC-ROC, F1, precisión, recall, FPR y recall por patrón, con el umbral elegido

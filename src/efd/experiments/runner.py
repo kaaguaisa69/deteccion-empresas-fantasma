@@ -141,19 +141,22 @@ class ExperimentRunner:
         recorder.save_scenario(self._scenario_info(scenario))
         recorder.save_folds(folds_by_seed)
         recorder.save_predictions(pd.concat(predictions, ignore_index=True))
-        recorder.save_metrics(
-            {
-                "experiment": config.name,
-                "feature_set": config.feature_set,
-                "model": config.model_name,
-                "seeds": list(config.seeds),
-                "duration_seconds": round(time.perf_counter() - started, 1),
-                "folds": fold_results,
-                "precision_at_k": pooled_results,
-                "feature_seconds": feature_seconds,
-                "summary": summarize(fold_results, pooled_results, feature_seconds),
-            }
-        )
+        metrics: dict[str, Any] = {
+            "experiment": config.name,
+            "feature_set": config.feature_set,
+            "model": config.model_name,
+            "seeds": list(config.seeds),
+            "duration_seconds": round(time.perf_counter() - started, 1),
+            "folds": fold_results,
+            "precision_at_k": pooled_results,
+            "feature_seconds": feature_seconds,
+            "summary": summarize(fold_results, pooled_results, feature_seconds),
+        }
+        if "num_threads" in config.model_params:
+            import torch
+
+            metrics["torch_num_threads"] = torch.get_num_threads()
+        recorder.save_metrics(metrics)
         recorder.save_environment()
         return directory
 
