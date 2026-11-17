@@ -1,0 +1,57 @@
+ 0 {'hidden_channels': 64, 'num_layers': 2, 'lr': 0.01}    41.3 s  épocas  34  mejor  14  val AUC-PR 0.985054
+ 1 {'hidden_channels': 64, 'num_layers': 2, 'lr': 0.005}    75.8 s  épocas  64  mejor  44  val AUC-PR 0.979977
+ 2 {'hidden_channels': 64, 'num_layers': 3, 'lr': 0.01}    91.1 s  épocas  56  mejor  36  val AUC-PR 0.980135
+ 3 {'hidden_channels': 64, 'num_layers': 3, 'lr': 0.005}   126.4 s  épocas  67  mejor  47  val AUC-PR 0.986080
+ 4 {'hidden_channels': 128, 'num_layers': 2, 'lr': 0.01}   160.5 s  épocas  71  mejor  51  val AUC-PR 0.990360
+ 5 {'hidden_channels': 128, 'num_layers': 2, 'lr': 0.005}    92.2 s  épocas  48  mejor  28  val AUC-PR 0.982227
+ 6 {'hidden_channels': 128, 'num_layers': 3, 'lr': 0.01}   206.7 s  épocas  62  mejor  42  val AUC-PR 0.988643
+ 7 {'hidden_channels': 128, 'num_layers': 3, 'lr': 0.005}   186.7 s  épocas  63  mejor  43  val AUC-PR 0.992494
+Traceback (most recent call last):
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\results\medir_tiempo_g3.py", line 85, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\results\medir_tiempo_g3.py", line 44, in main
+    detector.fit(data, fold.train_idx, fold.val_idx)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\base.py", line 54, in fit
+    self._fit(data, train, val)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\neural.py", line 329, in _fit
+    self.history_, self.best_epoch_ = train_full_batch(
+                                      ~~~~~~~~~~~~~~~~^
+        network,
+        ^^^^^^^^
+    ...<7 lines>...
+        self.patience,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\neural.py", line 107, in train_full_batch
+    loss = loss_fn(forward()[train], y_train)
+                   ~~~~~~~^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\neural.py", line 331, in <lambda>
+    lambda: network(*inputs),
+            ~~~~~~~^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1787, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1798, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\neural.py", line 205, in forward
+    messages = layer(h, edge_index_dict, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1787, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1798, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\nn\conv\hetero_conv.py", line 159, in forward
+    out = conv(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1787, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1798, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\nn\conv\sage_conv.py", line 139, in forward
+    out = out + self.lin_r(x_r)
+          ~~~~^~~~~~~~~~~~~~~~~
+RuntimeError: [enforce fail at alloc_cpu.cpp:117] data. DefaultCPUAllocator: not enough memory: you tried to allocate 40960000 bytes.

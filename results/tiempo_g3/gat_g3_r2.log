@@ -1,0 +1,6 @@
+ 0 {'heads': 4, 'hidden_channels': 8, 'dropout': 0.3}   170.7 s  épocas 109  mejor  89  val AUC-PR 0.982945
+ 1 {'heads': 4, 'hidden_channels': 8, 'dropout': 0.6}   198.5 s  épocas 108  mejor  88  val AUC-PR 0.983481
+ 2 {'heads': 4, 'hidden_channels': 16, 'dropout': 0.3}   219.0 s  épocas  63  mejor  43  val AUC-PR 0.994016
+ 3 {'heads': 4, 'hidden_channels': 16, 'dropout': 0.6}   326.2 s  épocas 107  mejor  87  val AUC-PR 0.996609
+ 4 {'heads': 4, 'hidden_channels': 32, 'dropout': 0.3}   665.8 s  épocas  91  mejor  71  val AUC-PR 0.999515
+ 5 {'heads': 4, 'hidden_channels': 32, 'dropout': 0.6}   246.3 s  épocas  54  mejor  34  val AUC-PR 0.999282

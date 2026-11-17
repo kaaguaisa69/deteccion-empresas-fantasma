@@ -1,0 +1,85 @@
+ 0 {'hidden_channels': 64, 'num_layers': 2, 'lr': 0.01}    37.4 s  épocas  34  mejor  14  val AUC-PR 0.985054
+ 1 {'hidden_channels': 64, 'num_layers': 2, 'lr': 0.005}    69.7 s  épocas  64  mejor  44  val AUC-PR 0.979977
+ 2 {'hidden_channels': 64, 'num_layers': 3, 'lr': 0.01}    94.1 s  épocas  56  mejor  36  val AUC-PR 0.980135
+ 3 {'hidden_channels': 64, 'num_layers': 3, 'lr': 0.005}   111.4 s  épocas  67  mejor  47  val AUC-PR 0.986080
+Traceback (most recent call last):
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\results\medir_tiempo_g3.py", line 85, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\results\medir_tiempo_g3.py", line 44, in main
+    detector.fit(data, fold.train_idx, fold.val_idx)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\base.py", line 54, in fit
+    self._fit(data, train, val)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\neural.py", line 329, in _fit
+    self.history_, self.best_epoch_ = train_full_batch(
+                                      ~~~~~~~~~~~~~~~~^
+        network,
+        ^^^^^^^^
+    ...<7 lines>...
+        self.patience,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\neural.py", line 107, in train_full_batch
+    loss = loss_fn(forward()[train], y_train)
+                   ~~~~~~~^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\neural.py", line 331, in <lambda>
+    lambda: network(*inputs),
+            ~~~~~~~^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1787, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1798, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\src\efd\models\neural.py", line 205, in forward
+    messages = layer(h, edge_index_dict, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1787, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1798, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\nn\conv\hetero_conv.py", line 159, in forward
+    out = conv(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1787, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1798, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\nn\conv\sage_conv.py", line 134, in forward
+    out = self.propagate(edge_index, x=x, size=size)
+  File "C:\Users\recko\AppData\Local\Temp\torch_geometric.nn.conv.sage_conv_SAGEConv_propagate_x2xycop8.py", line 229, in propagate
+    out = self.aggregate(
+        out,
+    ...<2 lines>...
+        dim_size=kwargs.dim_size,
+    )
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\nn\conv\message_passing.py", line 594, in aggregate
+    return self.aggr_module(inputs, index, ptr=ptr, dim_size=dim_size,
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                            dim=self.node_dim)
+                            ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\experimental.py", line 117, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\nn\aggr\base.py", line 139, in __call__
+    raise e
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\nn\aggr\base.py", line 131, in __call__
+    return super().__call__(x, index=index, ptr=ptr, dim_size=dim_size,
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                            dim=dim, **kwargs)
+                            ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1787, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1798, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\nn\aggr\basic.py", line 36, in forward
+    return self.reduce(x, index, ptr, dim_size, dim, reduce='mean')
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\nn\aggr\base.py", line 185, in reduce
+    return scatter(x, index, dim, dim_size, reduce)
+  File "C:\Users\recko\Desktop\Reportes\kevi\tesis\deteccion-empresas-fantasma\.venv\Lib\site-packages\torch_geometric\utils\_scatter.py", line 78, in scatter
+    out = src.new_zeros(size).scatter_add_(dim, index, src)
+          ~~~~~~~~~~~~~^^^^^^
+RuntimeError: [enforce fail at alloc_cpu.cpp:117] data. DefaultCPUAllocator: not enough memory: you tried to allocate 20480000 bytes.

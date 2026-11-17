@@ -1,0 +1,14 @@
+ 0 {'hidden_channels': 64, 'num_layers': 2, 'lr': 0.01}    13.6 s  épocas 147  mejor 127  val AUC-PR 0.987270
+ 1 {'hidden_channels': 64, 'num_layers': 2, 'lr': 0.005}    16.4 s  épocas 200  mejor 200  val AUC-PR 0.986437
+ 2 {'hidden_channels': 64, 'num_layers': 3, 'lr': 0.01}    13.0 s  épocas  82  mejor  62  val AUC-PR 0.987605
+ 3 {'hidden_channels': 64, 'num_layers': 3, 'lr': 0.005}    13.0 s  épocas  81  mejor  61  val AUC-PR 0.986890
+ 4 {'hidden_channels': 128, 'num_layers': 2, 'lr': 0.01}    28.4 s  épocas 168  mejor 148  val AUC-PR 0.991917
+ 5 {'hidden_channels': 128, 'num_layers': 2, 'lr': 0.005}    21.6 s  épocas 140  mejor 120  val AUC-PR 0.989752
+ 6 {'hidden_channels': 128, 'num_layers': 3, 'lr': 0.01}    17.4 s  épocas  51  mejor  31  val AUC-PR 0.984508
+ 7 {'hidden_channels': 128, 'num_layers': 3, 'lr': 0.005}    22.0 s  épocas  79  mejor  59  val AUC-PR 0.988118
+ 8 {'hidden_channels': 256, 'num_layers': 2, 'lr': 0.01}    27.9 s  épocas  87  mejor  67  val AUC-PR 0.988850
+ 9 {'hidden_channels': 256, 'num_layers': 2, 'lr': 0.005}    33.9 s  épocas 103  mejor  83  val AUC-PR 0.987578
+10 {'hidden_channels': 256, 'num_layers': 3, 'lr': 0.01}    35.0 s  épocas  57  mejor  37  val AUC-PR 0.988977
+11 {'hidden_channels': 256, 'num_layers': 3, 'lr': 0.005}    39.0 s  épocas  56  mejor  36  val AUC-PR 0.992395
+Armado de datos: 8.3 s; pliegue (12 combinaciones): 281.0 s
+Estimación corrida completa (15 mediciones): 1.18 h

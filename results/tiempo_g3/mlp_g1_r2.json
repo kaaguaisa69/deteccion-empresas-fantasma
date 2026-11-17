@@ -1,0 +1,152 @@
+{
+  "config": "configs/experiments/mlp_g1_v2_ajuste.yaml",
+  "assembly_seconds": 8.333273500029463,
+  "fold_seconds": 281.04129990004003,
+  "estimate_seconds": 4240.619319000689,
+  "rows": [
+    {
+      "combo": 0,
+      "params": {
+        "hidden_channels": 64,
+        "num_layers": 2,
+        "lr": 0.01
+      },
+      "seconds": 13.56299779994879,
+      "epochs_run": 147,
+      "best_epoch": 127,
+      "val_auc_pr": 0.9872702748797816
+    },
+    {
+      "combo": 1,
+      "params": {
+        "hidden_channels": 64,
+        "num_layers": 2,
+        "lr": 0.005
+      },
+      "seconds": 16.351566500030458,
+      "epochs_run": 200,
+      "best_epoch": 200,
+      "val_auc_pr": 0.9864374155350094
+    },
+    {
+      "combo": 2,
+      "params": {
+        "hidden_channels": 64,
+        "num_layers": 3,
+        "lr": 0.01
+      },
+      "seconds": 13.011165399977472,
+      "epochs_run": 82,
+      "best_epoch": 62,
+      "val_auc_pr": 0.9876051664922054
+    },
+    {
+      "combo": 3,
+      "params": {
+        "hidden_channels": 64,
+        "num_layers": 3,
+        "lr": 0.005
+      },
+      "seconds": 13.029917400039267,
+      "epochs_run": 81,
+      "best_epoch": 61,
+      "val_auc_pr": 0.9868895169956851
+    },
+    {
+      "combo": 4,
+      "params": {
+        "hidden_channels": 128,
+        "num_layers": 2,
+        "lr": 0.01
+      },
+      "seconds": 28.37542730005225,
+      "epochs_run": 168,
+      "best_epoch": 148,
+      "val_auc_pr": 0.9919167404502909
+    },
+    {
+      "combo": 5,
+      "params": {
+        "hidden_channels": 128,
+        "num_layers": 2,
+        "lr": 0.005
+      },
+      "seconds": 21.5898809999926,
+      "epochs_run": 140,
+      "best_epoch": 120,
+      "val_auc_pr": 0.9897523658573648
+    },
+    {
+      "combo": 6,
+      "params": {
+        "hidden_channels": 128,
+        "num_layers": 3,
+        "lr": 0.01
+      },
+      "seconds": 17.390207000018563,
+      "epochs_run": 51,
+      "best_epoch": 31,
+      "val_auc_pr": 0.9845082790994826
+    },
+    {
+      "combo": 7,
+      "params": {
+        "hidden_channels": 128,
+        "num_layers": 3,
+        "lr": 0.005
+      },
+      "seconds": 22.002837100008037,
+      "epochs_run": 79,
+      "best_epoch": 59,
+      "val_auc_pr": 0.9881184012392216
+    },
+    {
+      "combo": 8,
+      "params": {
+        "hidden_channels": 256,
+        "num_layers": 2,
+        "lr": 0.01
+      },
+      "seconds": 27.87189379998017,
+      "epochs_run": 87,
+      "best_epoch": 67,
+      "val_auc_pr": 0.9888500080111922
+    },
+    {
+      "combo": 9,
+      "params": {
+        "hidden_channels": 256,
+        "num_layers": 2,
+        "lr": 0.005
+      },
+      "seconds": 33.85658560000593,
+      "epochs_run": 103,
+      "best_epoch": 83,
+      "val_auc_pr": 0.9875776966850043
+    },
+    {
+      "combo": 10,
+      "params": {
+        "hidden_channels": 256,
+        "num_layers": 3,
+        "lr": 0.01
+      },
+      "seconds": 35.01951449998887,
+      "epochs_run": 57,
+      "best_epoch": 37,
+      "val_auc_pr": 0.9889769085081586
+    },
+    {
+      "combo": 11,
+      "params": {
+        "hidden_channels": 256,
+        "num_layers": 3,
+        "lr": 0.005
+      },
+      "seconds": 38.97930649999762,
+      "epochs_run": 56,
+      "best_epoch": 36,
+      "val_auc_pr": 0.9923946008110129
+    }
+  ]
+}
