@@ -99,6 +99,13 @@ Las métricas de red se calculan en `src/efd/graph/`; `src/efd/features/` solo l
 - **Contenido del YAML:** escenario, grupo de variables (`G1` o `G2`), modelo, número de particiones y
   lista de semillas. Cada semilla repite el k-fold completo con sus propias particiones, modelo y
   comunidades Louvain.
+- **Ajuste de hiperparámetros (opcional):** la clave `model.grid` del YAML es una lista de 1 a 12
+  combinaciones distintas y no vacías (`MAX_GRID_SIZE`), cada una un diccionario que se fusiona sobre
+  `model.params`. En cada pliegue se entrena un detector por combinación (con la semilla de la corrida) y se
+  elige el de mayor AUC-PR en validación (empate: índice menor); ese detector, sin reentrenar, fija el umbral
+  en validación y predice la prueba, que no interviene en la elección. `folds[i].tuning` guarda
+  `{selected, params, val_auc_pr}` y `summary.tuning.selected_counts` cuenta cuántos pliegues eligieron cada
+  índice. Sin `grid`, la corrida es la de siempre y no aparece `tuning`.
 - **Carpeta de cada corrida:** `results/runs/<AAAAMMDD-HHMMSS>_<experimento>/` con estos archivos:
 
 | Archivo | Contenido |
@@ -106,6 +113,6 @@ Las métricas de red se calculan en `src/efd/graph/`; `src/efd/features/` solo l
 | `config.yaml` | configuración usada |
 | `scenario.json` | ruta del escenario y su `config_hash` |
 | `folds.json` | índices de nodo de cada pliegue, por semilla |
-| `metrics.json` | métricas por semilla y pliegue, subpoblaciones (si se piden), precision@k por semilla, `feature_seconds` (segundos de cada bloque de variables, una entrada por semilla) y resumen (con `summary.subpopulations` y `summary.feature_seconds`) |
+| `metrics.json` | métricas por semilla y pliegue, subpoblaciones (si se piden), `tuning` por pliegue (si hay `model.grid`), precision@k por semilla, `feature_seconds` (segundos de cada bloque de variables, una entrada por semilla) y resumen (con `summary.subpopulations`, `summary.feature_seconds` y `summary.tuning`) |
 | `predictions.parquet` | identificador, semilla, pliegue, puntuación, umbral y etiqueta de cada predicción de prueba |
 | `environment.json` | versiones de Python y de las librerías |
