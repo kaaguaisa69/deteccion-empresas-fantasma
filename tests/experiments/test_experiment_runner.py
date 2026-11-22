@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,7 @@ RUN_FILES = (
     "metrics.json",
     "predictions.parquet",
     "environment.json",
+    "run_info.json",
 )
 
 
@@ -45,6 +47,22 @@ class _TuningProbe(BaseDetector):
         y = data.y[idx].astype(float)
         on_validation = np.array_equal(idx, self.val_idx)
         return y if on_validation == (self.quality == "val") else 1.0 - y
+
+
+@register_detector
+class _Interruptible(_TuningProbe):
+    """Como ``_TuningProbe``, pero falla al entrenar tras ``fits_allowed`` ajustes (interrupción simulada)."""
+
+    name = "interruptible_test"
+    fits = 0
+    fits_allowed: int | None = None
+
+    def _fit(self, data: ExperimentData, train_idx: np.ndarray, val_idx: np.ndarray) -> None:
+        cls = type(self)
+        if cls.fits_allowed is not None and cls.fits >= cls.fits_allowed:
+            raise RuntimeError("interrupción simulada")
+        cls.fits += 1
+        super()._fit(data, train_idx, val_idx)
 
 
 def _raw(scenario: Path) -> dict[str, Any]:
@@ -166,6 +184,76 @@ def test_same_configuration_gives_same_results(run_dir: Path, written_dir: Path,
     assert {k: v for k, v in first["summary"].items() if k != "feature_seconds"} == {
         k: v for k, v in second["summary"].items() if k != "feature_seconds"
     }
+
+
+def test_run_info_records_commit_and_times(run_dir: Path) -> None:
+    info = json.loads((run_dir / "run_info.json").read_text(encoding="utf-8"))
+    assert set(info) == {"commit", "dirty", "started_at"}
+    assert info["commit"] is None or len(info["commit"]) == 40  # git puede no estar disponible
+    metrics = _metrics(run_dir)
+    assert metrics["started_at"] == info["started_at"] <= metrics["finished_at"]
+    assert metrics["compute_seconds"] >= 0
+
+
+def _interruptible_config(written_dir: Path) -> ExperimentConfig:
+    raw = _raw(written_dir)
+    raw["model"] = {"name": "interruptible_test"}
+    return ExperimentConfig.from_dict(raw)
+
+
+def test_interrupted_run_resumes_from_the_next_pending_fold(written_dir: Path, tmp_path: Path) -> None:
+    config = _interruptible_config(written_dir)
+    _Interruptible.fits, _Interruptible.fits_allowed = 0, None
+    reference_dir = ExperimentRunner(config, tmp_path / "reference").run()
+
+    _Interruptible.fits, _Interruptible.fits_allowed = 0, 4  # 6 pliegues en total: cae en el quinto
+    runner = ExperimentRunner(config, tmp_path / "runs")
+    with pytest.raises(RuntimeError, match="interrupción simulada"):
+        runner.run()
+    (interrupted,) = (tmp_path / "runs").iterdir()
+    assert not (interrupted / "metrics.json").exists()
+    assert (interrupted / "run_info.json").exists()
+    assert len(list((interrupted / "progress").glob("seed*_fold*.json"))) == 4
+
+    _Interruptible.fits, _Interruptible.fits_allowed = 0, None
+    resumed_dir = runner.run()
+    assert resumed_dir == interrupted
+    assert _Interruptible.fits == 2  # solo entrenó los dos pliegues pendientes
+    assert _metrics(resumed_dir)["folds"] == _metrics(reference_dir)["folds"]
+    pd.testing.assert_frame_equal(
+        pd.read_parquet(resumed_dir / "predictions.parquet"),
+        pd.read_parquet(reference_dir / "predictions.parquet"),
+    )
+    assert all((resumed_dir / file).exists() for file in RUN_FILES)
+
+
+def test_resume_refuses_a_different_commit(written_dir: Path, tmp_path: Path) -> None:
+    config = _interruptible_config(written_dir)
+    _Interruptible.fits, _Interruptible.fits_allowed = 0, 1
+    runner = ExperimentRunner(config, tmp_path)
+    with pytest.raises(RuntimeError, match="interrupción simulada"):
+        runner.run()
+    (interrupted,) = tmp_path.iterdir()
+    info_path = interrupted / "run_info.json"
+    info = json.loads(info_path.read_text(encoding="utf-8"))
+    info["commit"] = "0" * 40
+    info_path.write_text(json.dumps(info), encoding="utf-8")
+    _Interruptible.fits_allowed = None
+    with pytest.raises(RuntimeError, match="No se mezclan códigos distintos"):
+        runner.run()
+
+
+def test_interrupted_run_with_other_configuration_is_not_resumed(written_dir: Path, tmp_path: Path) -> None:
+    _Interruptible.fits, _Interruptible.fits_allowed = 0, 1
+    with pytest.raises(RuntimeError, match="interrupción simulada"):
+        ExperimentRunner(_interruptible_config(written_dir), tmp_path).run()
+    raw = _raw(written_dir)
+    raw["model"] = {"name": "interruptible_test"}
+    raw["experiment"]["seeds"] = [3]
+    _Interruptible.fits, _Interruptible.fits_allowed = 0, None
+    time.sleep(1.1)  # la carpeta de la corrida se nombra con la hora al segundo
+    new_dir = ExperimentRunner(ExperimentConfig.from_dict(raw), tmp_path).run()
+    assert len(list(tmp_path.iterdir())) == 2 and (new_dir / "metrics.json").exists()
 
 
 def test_mean_std() -> None:

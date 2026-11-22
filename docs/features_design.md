@@ -155,3 +155,5 @@ Las métricas de red se calculan en `src/efd/graph/`; `src/efd/features/` solo l
 | `metrics.json` | métricas por semilla y pliegue, subpoblaciones (si se piden), `tuning` por pliegue (si hay `model.grid`), precision@k por semilla, `feature_seconds` (segundos de cada bloque de variables, una entrada por semilla) y resumen (con `summary.subpopulations`, `summary.feature_seconds` y `summary.tuning`) |
 | `predictions.parquet` | identificador, semilla, pliegue, puntuación, umbral y etiqueta de cada predicción de prueba |
 | `environment.json` | versiones de Python y de las librerías |
+| `run_info.json` | commit del código con que se ejecutó, si había cambios sin commit y hora de inicio |
+| `progress/` | un archivo por pliegue terminado (se guarda al instante); si la corrida se interrumpe, al relanzarla con la misma configuración y el mismo commit continúa desde el siguiente pliegue pendiente |
