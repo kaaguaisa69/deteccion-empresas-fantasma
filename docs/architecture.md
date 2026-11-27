@@ -160,6 +160,21 @@ modificarlo; con la configuración basta un archivo nuevo, y la trazabilidad de 
 comparar las variantes después. La política `fixed` permite además estudiar cómo cambian las métricas
 dependientes del umbral sin reentrenar.
 
+## Análisis estadístico
+
+`python -m efd.experiments.analysis` lee las siete corridas `*_v2_ajuste` y compara el AUC-PR sin P1 de
+cada pliegue (15 mediciones por modelo, pareadas por semilla y pliegue; se detiene si los modelos no
+comparten particiones). Calcula la prueba de Friedman sobre los siete modelos y tres comparaciones de
+Wilcoxon bilaterales con corrección de Holm: mejor G3 contra mejor G1 (H1), contra mejor G2 y contra MLP G1.
+Si Friedman no es significativa, las comparaciones se reportan solo como descriptivas.
+
+H1 se cumple solo si se dan las cuatro condiciones: Friedman significativa (p < 0.05), reducción del error
+de al menos 0.15 (error = 1 − AUC-PR), p ajustado de la comparación (a) menor que 0.05 y diferencia media a
+favor de G3.
+
+**Limitación:** las 15 mediciones no son independientes porque las particiones comparten datos de
+entrenamiento (Demšar, 2006); los valores p son orientativos. El informe se escribe en `results/analisis/`.
+
 ## Simplicidad
 
 - Sin bases de datos ni servicios externos: los datos se generan y se guardan en `data/`; los resultados,
