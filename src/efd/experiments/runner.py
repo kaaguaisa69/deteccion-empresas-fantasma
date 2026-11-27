@@ -8,8 +8,10 @@ semilla sobre las predicciones de prueba de todos los pliegues. Solo depende de 
 
 from __future__ import annotations
 
+import gc
 import time
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -111,18 +113,27 @@ class ExperimentRunner:
     def run(self) -> Path:
         """Ejecuta todas las semillas y pliegues, guarda la corrida y devuelve su carpeta."""
         config = self.config
-        started = time.perf_counter()
         scenario = load_scenario(config.scenario)
         requires_graph = DETECTORS.get(config.model_name).requires_graph
+        recorder = RunRecorder(self.runs_root, config.name)
+        directory, _ = recorder.start(config.raw, self._scenario_info(scenario))
 
         fold_results, pooled_results, predictions, folds_by_seed, feature_seconds = [], [], [], {}, []
+        compute_seconds = 0.0
         for seed in config.seeds:
             set_global_seed(seed)
             assembled = assemble_experiment_data(
                 scenario, config.feature_set, config.feature_params, seed, requires_graph
             )
-            feature_seconds.append({"seed": seed, **assembled.feature_seconds})
-            seed_predictions = self._run_seed(assembled, seed, fold_results, folds_by_seed)
+            meta = recorder.load_seed_meta(seed)
+            if meta is None:
+                meta = {"feature_seconds": assembled.feature_seconds}
+                recorder.save_seed_meta(seed, meta)
+            feature_seconds.append({"seed": seed, **meta["feature_seconds"]})
+            seed_predictions, seed_seconds = self._run_seed(
+                assembled, seed, fold_results, folds_by_seed, recorder
+            )
+            compute_seconds += seed_seconds
             pooled_results.append(
                 {
                     "seed": seed,
@@ -135,25 +146,29 @@ class ExperimentRunner:
             )
             predictions.append(seed_predictions)
 
-        recorder = RunRecorder(self.runs_root, config.name)
-        directory = recorder.create_run_dir()
-        recorder.save_config(config.raw)
-        recorder.save_scenario(self._scenario_info(scenario))
         recorder.save_folds(folds_by_seed)
         recorder.save_predictions(pd.concat(predictions, ignore_index=True))
-        recorder.save_metrics(
-            {
-                "experiment": config.name,
-                "feature_set": config.feature_set,
-                "model": config.model_name,
-                "seeds": list(config.seeds),
-                "duration_seconds": round(time.perf_counter() - started, 1),
-                "folds": fold_results,
-                "precision_at_k": pooled_results,
-                "feature_seconds": feature_seconds,
-                "summary": summarize(fold_results, pooled_results, feature_seconds),
-            }
-        )
+        finished = datetime.now()
+        started = datetime.fromisoformat(recorder.info["started_at"])
+        metrics: dict[str, Any] = {
+            "experiment": config.name,
+            "feature_set": config.feature_set,
+            "model": config.model_name,
+            "seeds": list(config.seeds),
+            "started_at": recorder.info["started_at"],
+            "finished_at": finished.isoformat(timespec="seconds"),
+            "duration_seconds": round((finished - started).total_seconds(), 1),
+            "compute_seconds": round(compute_seconds, 1),
+            "folds": fold_results,
+            "precision_at_k": pooled_results,
+            "feature_seconds": feature_seconds,
+            "summary": summarize(fold_results, pooled_results, feature_seconds),
+        }
+        if "num_threads" in config.model_params:
+            import torch
+
+            metrics["torch_num_threads"] = torch.get_num_threads()
+        recorder.save_metrics(metrics)
         recorder.save_environment()
         return directory
 
@@ -163,8 +178,13 @@ class ExperimentRunner:
         seed: int,
         fold_results: list[dict[str, Any]],
         folds_by_seed: dict[str, Any],
-    ) -> pd.DataFrame:
-        """Recorre los pliegues de una semilla y devuelve sus predicciones de prueba."""
+        recorder: RunRecorder,
+    ) -> tuple[pd.DataFrame, float]:
+        """Recorre los pliegues de una semilla y devuelve sus predicciones de prueba y el tiempo de cálculo.
+
+        Cada pliegue terminado se guarda al momento; los que ya estaban guardados (corrida retomada) se
+        cargan sin volver a entrenar.
+        """
         config = self.config
         data, patterns = assembled.data, assembled.patterns
         y = data.y
@@ -177,7 +197,16 @@ class ExperimentRunner:
         }
 
         seed_predictions = []
+        seed_seconds = 0.0
         for fold in folds:
+            saved = recorder.load_fold_checkpoint(seed, fold.index)
+            if saved is not None:
+                fold_result, fold_predictions, seconds = saved
+                fold_results.append(fold_result)
+                seed_predictions.append(fold_predictions)
+                seed_seconds += seconds
+                continue
+            fold_started = time.perf_counter()
             detector, val_scores, tuning = self._fit_best(data, seed, fold)
             threshold = policy.select(y[fold.val_idx], val_scores)
             scores = detector.predict_proba(data, fold.test_idx)
@@ -205,20 +234,22 @@ class ExperimentRunner:
                     }
             if tuning is not None:
                 fold_result["tuning"] = tuning
-            fold_results.append(fold_result)
-            seed_predictions.append(
-                pd.DataFrame(
-                    {
-                        "taxpayer_id": data.node_ids[fold.test_idx],
-                        "seed": seed,
-                        "fold": fold.index,
-                        "score": scores,
-                        "threshold": threshold,
-                        "label": y_test,
-                    }
-                )
+            fold_predictions = pd.DataFrame(
+                {
+                    "taxpayer_id": data.node_ids[fold.test_idx],
+                    "seed": seed,
+                    "fold": fold.index,
+                    "score": scores,
+                    "threshold": threshold,
+                    "label": y_test,
+                }
             )
-        return pd.concat(seed_predictions, ignore_index=True)
+            seconds = time.perf_counter() - fold_started
+            recorder.save_fold_checkpoint(seed, fold.index, fold_result, fold_predictions, seconds)
+            fold_results.append(fold_result)
+            seed_predictions.append(fold_predictions)
+            seed_seconds += seconds
+        return pd.concat(seed_predictions, ignore_index=True), seed_seconds
 
     def _fit_best(self, data: Any, seed: int, fold: Any) -> tuple[Any, np.ndarray, dict[str, Any] | None]:
         """Entrena un detector por combinación y conserva el de mayor AUC-PR en validación.
@@ -246,6 +277,10 @@ class ExperimentRunner:
             val_auc_pr.append(auc_pr(data.y[val_idx], val_scores))
             if best is None or val_auc_pr[index] > val_auc_pr[selected]:
                 best, selected = (detector, val_scores), index
+            # Libera el detector descartado antes de la siguiente combinación: las redes quedan en ciclos de
+            # referencias y, sin esto, la RAM crece combinación a combinación. No altera los resultados.
+            del detector, val_scores
+            gc.collect()
         assert best is not None
         tuning = {"selected": selected, "params": dict(config.model_grid[selected]), "val_auc_pr": val_auc_pr}
         return best[0], best[1], tuning

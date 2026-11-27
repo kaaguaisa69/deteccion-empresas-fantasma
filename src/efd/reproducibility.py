@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import platform
 import random
+import subprocess
 from importlib.metadata import PackageNotFoundError, version
 from importlib.util import find_spec
+from pathlib import Path
 
 import numpy as np
 
@@ -37,6 +39,27 @@ def library_versions() -> dict[str, str]:
         except PackageNotFoundError:
             versions[library] = "no instalada"
     return versions
+
+
+def git_state() -> dict[str, str | bool | None]:
+    """Commit del código en ejecución y si hay cambios sin commit en archivos versionados.
+
+    Devuelve ``{"commit": None, "dirty": None}`` si no hay git o el código no está en un repositorio.
+    """
+    here = Path(__file__).resolve().parent
+
+    def run(*args: str) -> str | None:
+        try:
+            result = subprocess.run(
+                ["git", *args], cwd=here, capture_output=True, text=True, check=True, timeout=30
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return result.stdout.strip()
+
+    commit = run("rev-parse", "HEAD")
+    status = run("status", "--porcelain", "--untracked-files=no")
+    return {"commit": commit, "dirty": None if status is None else bool(status)}
 
 
 def set_global_seed(seed: int) -> None:

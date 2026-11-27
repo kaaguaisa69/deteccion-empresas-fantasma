@@ -53,16 +53,7 @@ def test_predict_proba_rejects_invalid_output(small_data: ExperimentData, output
 
 
 def test_concrete_detectors_are_registered() -> None:
-    assert {"random_forest", "xgboost", "graphsage", "gat"} <= set(available_detectors())
-
-
-@pytest.mark.parametrize("name", ["graphsage", "gat"])
-def test_graph_detectors_are_pending(name: str, small_data: ExperimentData) -> None:
-    detector = create_detector(name, seed=0)
-    assert isinstance(detector, BaseDetector)
-    assert detector.requires_graph
-    with pytest.raises(NotImplementedError):
-        detector.fit(small_data, np.arange(0, 15), np.arange(15, 20))
+    assert {"random_forest", "xgboost", "graphsage", "gat", "mlp"} <= set(available_detectors())
 
 
 @pytest.fixture
