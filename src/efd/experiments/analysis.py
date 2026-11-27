@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -284,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
     (args.output / "analisis_estadistico.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    sys.stdout.reconfigure(encoding="utf-8")  # consolas de Windows (cp1252) no tienen "α"
     print(report)
     return 0
 
