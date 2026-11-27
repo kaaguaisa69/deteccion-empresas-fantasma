@@ -290,3 +290,36 @@ def test_runner_with_graphsage(written_dir: Path, tmp_path: Path) -> None:
     assert all(len(fold["tuning"]["val_auc_pr"]) == 2 for fold in metrics["folds"])
     assert "selected_counts" in metrics["summary"]["tuning"]
     assert "auc_pr" in metrics["summary"]["subpopulations"]["sin_p1"]["metrics"]
+
+
+# --- Dispositivo: con CPU los resultados son idénticos a los anteriores al parámetro ``device`` -------
+
+# Primeras 6 puntuaciones de prueba, calculadas con el código de 7f8a684/188ce6e (sin ``device``).
+REFERENCE_SCORES = {
+    "mlp": [0.6341848969459534, 0.6022769212722778, 0.5922409892082214, 0.6311725378036499, 0.5831807255744934, 0.5814072489738464],
+    "graphsage": [0.10368051379919052, 0.5433563590049744, 0.1447538286447525, 0.15834136307239532, 0.5236549377441406, 0.3262254297733307],
+    "gat": [0.26530271768569946, 0.5919249057769775, 0.3169201910495758, 0.20006239414215088, 0.4512835741043091, 0.5577419996261597],
+}  # fmt: skip
+
+
+@pytest.mark.parametrize("device_params", [{}, {"device": "cpu"}])
+def test_cpu_scores_match_reference_before_device_parameter(
+    device_params: dict, separable_data: ExperimentData, graph_data: ExperimentData, fold
+) -> None:
+    train, val, test = _split(separable_data)
+    mlp = create_detector("mlp", seed=1, **PARAMS, **device_params).fit(separable_data, train, val)
+    np.testing.assert_allclose(
+        mlp.predict_proba(separable_data, test)[:6], REFERENCE_SCORES["mlp"], rtol=1e-6
+    )
+    for name in GNNS:
+        detector = create_detector(name, seed=3, **GNN_PARAMS[name], **device_params)
+        detector.fit(graph_data, fold.train_idx, fold.val_idx)
+        scores = detector.predict_proba(graph_data, fold.test_idx)[:6]
+        np.testing.assert_allclose(scores, REFERENCE_SCORES[name], rtol=1e-6)
+
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="solo comprueba el fallo sin CUDA")
+@pytest.mark.parametrize("name", ["mlp", "graphsage", "gat"])
+def test_cuda_without_cuda_fails_clearly(name: str) -> None:
+    with pytest.raises(RuntimeError, match="CUDA no está disponible"):
+        create_detector(name, seed=0, device="cuda")

@@ -168,6 +168,8 @@ class ExperimentRunner:
             import torch
 
             metrics["torch_num_threads"] = torch.get_num_threads()
+        if "device" in config.model_params:
+            metrics["device"] = config.model_params["device"]
         recorder.save_metrics(metrics)
         recorder.save_environment()
         return directory
