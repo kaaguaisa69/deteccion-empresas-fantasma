@@ -68,11 +68,13 @@ def _partitions(directory: Path) -> dict[tuple[int, int], frozenset]:
     }
 
 
-def load_scores(runs_root: Path) -> tuple[np.ndarray, list[str], dict[str, dict[str, Any]]]:
+def load_scores(
+    runs_root: Path, metric: str = "auc_pr"
+) -> tuple[np.ndarray, list[str], dict[str, dict[str, Any]]]:
     """Lee las siete corridas y devuelve ``(scores, labels, runs)``.
 
-    ``scores`` tiene forma ``(n_mediciones, n_modelos)`` con el AUC-PR sin P1 de cada pliegue, ordenado
-    por (``seed``, ``fold``). ``labels`` sigue el orden de ``MODELS`` y ``runs`` guarda la carpeta y el
+    ``scores`` tiene forma ``(n_mediciones, n_modelos)`` con la métrica ``metric`` (por defecto AUC-PR) sin
+    P1 de cada pliegue, ordenado por (``seed``, ``fold``). ``labels`` sigue el orden de ``MODELS`` y ``runs`` guarda la carpeta y el
     commit de cada corrida.
 
     Raises:
@@ -97,7 +99,7 @@ def load_scores(runs_root: Path) -> tuple[np.ndarray, list[str], dict[str, dict[
             raise ValueError(
                 f"Las particiones de {label} difieren de las de {labels[0]}; no hay parejas válidas."
             )
-        columns.append([float(f["subpopulations"]["sin_p1"]["metrics"]["auc_pr"]) for f in folds])
+        columns.append([float(f["subpopulations"]["sin_p1"]["metrics"][metric]) for f in folds])
         runs[label] = {"folder": directory.name, "commit": _commit_of(directory)}
     return np.column_stack(columns), labels, runs
 
@@ -106,8 +108,11 @@ def _best(group: tuple[str, ...], means: dict[str, float]) -> str:
     return max(group, key=lambda label: means[label])
 
 
-def analyze(scores: np.ndarray, labels: list[str]) -> dict[str, Any]:
+def analyze(scores: np.ndarray, labels: list[str], best: dict[str, str] | None = None) -> dict[str, Any]:
     """Calcula Friedman, las tres Wilcoxon con Holm y la decisión de H1.
+
+    Con ``best`` (claves ``G1``, ``G2``, ``G3``) los mejores modelos se fijan desde fuera, p. ej. los elegidos
+    por AUC-PR; ``best_by_own_mean`` informa cuáles saldrían por la media de ``scores``.
 
     Raises:
         ValueError: si el mejor modelo G1 no es XGBoost G1.
@@ -125,7 +130,9 @@ def analyze(scores: np.ndarray, labels: list[str]) -> dict[str, Any]:
         for i, label in enumerate(labels)
     }
 
-    best_g1, best_g2, best_g3 = _best(G1, means), _best(G2, means), _best(G3, means)
+    own = {"G1": _best(G1, means), "G2": _best(G2, means), "G3": _best(G3, means)}
+    chosen = best or own
+    best_g1, best_g2, best_g3 = chosen["G1"], chosen["G2"], chosen["G3"]
     if best_g1 != EXPECTED_BEST_G1:
         raise ValueError(f"El mejor G1 es {best_g1} y debía ser {EXPECTED_BEST_G1}; el análisis se detiene.")
 
@@ -177,6 +184,7 @@ def analyze(scores: np.ndarray, labels: list[str]) -> dict[str, Any]:
             "significant": bool(friedman_significant),
         },
         "best": {"G1": best_g1, "G2": best_g2, "G3": best_g3},
+        "best_by_own_mean": own,
         "comparisons": comparisons,
         "h1": {
             "error_g1": 1.0 - means[best_g1],
@@ -196,17 +204,17 @@ _CONDITION_TEXT = {
 }
 
 
-def render(result: dict[str, Any]) -> str:
+def render(result: dict[str, Any], metric_label: str = "AUC-PR sin P1") -> str:
     """Genera el informe en Markdown con tablas, la decisión de H1, la explicación y la limitación."""
     fried, h1 = result["friedman"], result["h1"]
     lines = [
         "# Análisis estadístico",
         "",
-        f"Métrica: AUC-PR sin P1, {result['n_measurements']} mediciones por modelo (semilla × pliegue).",
+        f"Métrica: {metric_label}, {result['n_measurements']} mediciones por modelo (semilla × pliegue).",
         "",
         "## Medias por modelo",
         "",
-        "| Modelo | AUC-PR sin P1 (media ± desviación) | Rango medio |",
+        f"| Modelo | {metric_label} (media ± desviación) | Rango medio |",
         "| --- | --- | --- |",
     ]
     for label, m in result["models"].items():
@@ -256,7 +264,7 @@ def render(result: dict[str, Any]) -> str:
         f"Se compararon siete modelos con las mismas {result['n_measurements']} particiones de los datos. "
         f"La prueba de Friedman {'sí' if fried['significant'] else 'no'} encontró diferencias entre los modelos "
         f"(p = {fried['p_value']:.4g}). El mejor modelo del grupo G3 ({result['best']['G3']}) obtuvo en "
-        f"promedio {result['comparisons'][0]['mean_a']:.4f} de AUC-PR sin P1, frente a "
+        f"promedio {result['comparisons'][0]['mean_a']:.4f} de {metric_label}, frente a "
         f"{result['comparisons'][0]['mean_b']:.4f} del mejor del grupo G1 ({result['best']['G1']}); eso "
         f"equivale a una reducción del error de {h1['reduction']:.1%}.",
         "",
