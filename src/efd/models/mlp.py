@@ -10,7 +10,13 @@ from torch import nn
 
 from efd.data import ExperimentData
 from efd.models.base import BaseDetector
-from efd.models.neural import fit_standardizer, signed_log1p, train_full_batch
+from efd.models.neural import (
+    configure_determinism,
+    fit_standardizer,
+    resolve_device,
+    signed_log1p,
+    train_full_batch,
+)
 from efd.models.registry import register_detector
 
 
@@ -48,6 +54,7 @@ class MLPDetector(BaseDetector):
         epochs: int = 200,
         patience: int = 20,
         num_threads: int | None = None,
+        device: str = "cpu",
         **extra: Any,
     ) -> None:
         """
@@ -61,6 +68,7 @@ class MLPDetector(BaseDetector):
             epochs: máximo de épocas.
             patience: épocas sin mejora antes de detener.
             num_threads: hilos de torch; si falta, no se fijan.
+            device: ``"cpu"`` (por defecto) o ``"cuda"``.
         """
         if extra:
             raise TypeError(f"Parámetros desconocidos para mlp: {sorted(extra)}")
@@ -73,6 +81,7 @@ class MLPDetector(BaseDetector):
         self.epochs = epochs
         self.patience = patience
         self.num_threads = num_threads
+        self.device = resolve_device(device)
         self.network: nn.Sequential | None = None
         self.history_: list[dict[str, float]] = []
         self.best_epoch_: int = 0
@@ -84,15 +93,15 @@ class MLPDetector(BaseDetector):
         return torch.as_tensor((values - self._mean) / self._std, dtype=torch.float32)
 
     def _fit(self, data: ExperimentData, train_idx: np.ndarray, val_idx: np.ndarray) -> None:
-        torch.manual_seed(self.seed)
-        torch.use_deterministic_algorithms(True)
+        configure_determinism(self.seed, self.device)
         if self.num_threads is not None:
             torch.set_num_threads(self.num_threads)
         self._mean, self._std = fit_standardizer(
             signed_log1p(data.features.to_numpy(dtype=np.float64)), train_idx
         )
         x = self._transform(data)
-        network = _build_mlp(x.shape[1], self.hidden_channels, self.num_layers, self.dropout)
+        network = _build_mlp(x.shape[1], self.hidden_channels, self.num_layers, self.dropout).to(self.device)
+        x = x.to(self.device)
         self.history_, self.best_epoch_ = train_full_batch(
             network,
             lambda: network(x).squeeze(-1),
@@ -103,13 +112,14 @@ class MLPDetector(BaseDetector):
             self.weight_decay,
             self.epochs,
             self.patience,
+            self.device,
         )
         self.network = network
 
     def _predict_proba(self, data: ExperimentData, idx: np.ndarray) -> np.ndarray:
         if self.network is None:
             raise RuntimeError("El detector no está entrenado.")
-        x = self._transform(data)
+        x = self._transform(data).to(self.device)
         with torch.no_grad():
-            logits = self.network(x[torch.as_tensor(idx, dtype=torch.long)]).squeeze(-1)
-        return torch.sigmoid(logits).numpy()
+            logits = self.network(x[torch.as_tensor(idx, dtype=torch.long, device=self.device)]).squeeze(-1)
+        return torch.sigmoid(logits).cpu().numpy()

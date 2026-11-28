@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import os
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Literal
 
@@ -54,6 +55,28 @@ def fit_standardizer(x: np.ndarray, train_idx: Sequence[int] | np.ndarray) -> tu
     return mean, std
 
 
+def resolve_device(device: str | torch.device) -> torch.device:
+    """Convierte ``device`` en ``torch.device`` y falla si pide CUDA sin que esté disponible."""
+    resolved = torch.device(device)
+    if resolved.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("device='cuda' pero CUDA no está disponible en este entorno (¿se usa .venv-gpu?).")
+    return resolved
+
+
+def configure_determinism(seed: int, device: torch.device) -> None:
+    """Fija la semilla y los algoritmos deterministas.
+
+    En CPU, ``use_deterministic_algorithms(True)`` es estricto. En CUDA hay operaciones sin versión
+    determinista (p. ej. ``scatter_reduce`` de PyG): se usa ``warn_only=True`` y torch avisa cuáles son.
+    """
+    torch.manual_seed(seed)
+    if device.type == "cuda":
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+        torch.use_deterministic_algorithms(True, warn_only=True)
+    else:
+        torch.use_deterministic_algorithms(True)
+
+
 def train_full_batch(
     module: nn.Module,
     forward: Callable[[], torch.Tensor],
@@ -64,6 +87,7 @@ def train_full_batch(
     weight_decay: float,
     epochs: int,
     patience: int,
+    device: torch.device | None = None,
 ) -> tuple[list[dict[str, float]], int]:
     """Entrena ``module`` con todo el grafo en cada época y parada temprana por AUC-PR de validación.
 
@@ -82,17 +106,20 @@ def train_full_batch(
         weight_decay: regularización L2 de Adam.
         epochs: máximo de épocas.
         patience: épocas sin mejora antes de detenerse.
+        device: dispositivo de ``module`` y de los tensores de ``forward``; CPU si falta.
 
     Returns:
         ``(history, best_epoch)``: lista de ``{"epoch", "train_loss", "val_auc_pr"}`` (épocas desde 1) y la
         época elegida.
     """
+    device = device or torch.device("cpu")
     labels = torch.tensor(np.asarray(y), dtype=torch.float32)
     train = torch.as_tensor(np.asarray(train_idx), dtype=torch.long)
     val = torch.as_tensor(np.asarray(val_idx), dtype=torch.long)
     y_train = labels[train]
     positives = float(y_train.sum())
     pos_weight = torch.tensor((y_train.numel() - positives) / max(positives, 1.0), dtype=torch.float32)
+    train, val, y_train, pos_weight = (t.to(device) for t in (train, val, y_train, pos_weight))
     loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     optimizer = torch.optim.Adam(module.parameters(), lr=lr, weight_decay=weight_decay)
     y_val = np.asarray(y)[np.asarray(val_idx)]
@@ -110,7 +137,7 @@ def train_full_batch(
 
         module.eval()
         with torch.no_grad():
-            scores = torch.sigmoid(forward()[val]).numpy()
+            scores = torch.sigmoid(forward()[val]).cpu().numpy()
         val_score = auc_pr(y_val, scores)
         history.append({"epoch": epoch, "train_loss": float(loss.item()), "val_auc_pr": val_score})
         if val_score > best_score:
@@ -244,6 +271,7 @@ class HeteroGNNDetector(BaseDetector):
         patience: int = 20,
         num_threads: int | None = None,
         heads: int = 1,
+        device: str = "cpu",
     ) -> None:
         """
         Args:
@@ -257,6 +285,7 @@ class HeteroGNNDetector(BaseDetector):
             patience: épocas sin mejora antes de detener.
             num_threads: hilos de torch; si falta, no se fijan.
             heads: cabezas de atención (solo GAT).
+            device: ``"cpu"`` (por defecto) o ``"cuda"``; con ``"cuda"`` se exige el entorno GPU.
         """
         self.seed = seed
         self.hidden_channels = hidden_channels
@@ -268,6 +297,7 @@ class HeteroGNNDetector(BaseDetector):
         self.patience = patience
         self.num_threads = num_threads
         self.heads = heads
+        self.device = resolve_device(device)
         self.network: HeteroGNN | None = None
         self.history_: list[dict[str, float]] = []
         self.best_epoch_: int = 0
@@ -299,6 +329,13 @@ class HeteroGNNDetector(BaseDetector):
             }
         return x_dict, edge_index_dict, edge_attr_dict
 
+    def _to_device(self, inputs: tuple[Any, ...]) -> tuple[Any, ...]:
+        """Mueve al dispositivo los diccionarios de tensores de ``_inputs`` (``None`` se conserva)."""
+        return tuple(
+            None if group is None else {key: tensor.to(self.device) for key, tensor in group.items()}
+            for group in inputs
+        )
+
     @staticmethod
     def _log_count(edge_attr: torch.Tensor) -> np.ndarray:
         """``edge_attr`` como float64 con ``log(1+x)`` solo en la columna 0 (número de facturas)."""
@@ -307,8 +344,7 @@ class HeteroGNNDetector(BaseDetector):
         return values
 
     def _fit(self, data: ExperimentData, train_idx: np.ndarray, val_idx: np.ndarray) -> None:
-        torch.manual_seed(self.seed)
-        torch.use_deterministic_algorithms(True)
+        configure_determinism(self.seed, self.device)
         if self.num_threads is not None:
             torch.set_num_threads(self.num_threads)
         graph = data.require_graph()
@@ -325,7 +361,11 @@ class HeteroGNNDetector(BaseDetector):
             self.dropout,
             self.heads,
         )
-        network.initialize_lazy(*inputs)
+        network.initialize_lazy(
+            *inputs
+        )  # en CPU: los pesos iniciales salen del mismo generador en cualquier dispositivo
+        network.to(self.device)
+        inputs = self._to_device(inputs)
         self.history_, self.best_epoch_ = train_full_batch(
             network,
             lambda: network(*inputs),
@@ -336,6 +376,7 @@ class HeteroGNNDetector(BaseDetector):
             self.weight_decay,
             self.epochs,
             self.patience,
+            self.device,
         )
         self.network = network
 
@@ -344,5 +385,6 @@ class HeteroGNNDetector(BaseDetector):
             raise RuntimeError("El detector no está entrenado.")
         self.network.eval()
         with torch.no_grad():
-            logits = self.network(*self._inputs(data))
-        return torch.sigmoid(logits)[torch.as_tensor(idx, dtype=torch.long)].numpy()
+            logits = self.network(*self._to_device(self._inputs(data)))
+        rows = torch.as_tensor(idx, dtype=torch.long, device=self.device)
+        return torch.sigmoid(logits)[rows].cpu().numpy()

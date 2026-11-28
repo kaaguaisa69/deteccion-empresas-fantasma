@@ -66,6 +66,25 @@ pip install -r requirements.txt
 pip install -e . --no-deps
 ```
 
+### Dos entornos: CPU y GPU
+
+| Entorno | Archivo | Cuándo usarlo |
+|---|---|---|
+| `.venv` (CPU) | `requirements.txt` | Entorno de referencia: pruebas, generador, G1/G2 y todas las corridas de H1 (G3 y MLP en `device: cpu`, el valor por defecto). |
+| `.venv-gpu` | `requirements-gpu.txt` | Solo corridas de las redes neuronales con `device: cuda` en `model.params` del YAML (requiere GPU NVIDIA). |
+
+Las versiones son las mismas salvo `torch` (`2.15.0` frente a `2.15.0+cu132`). Dentro de una misma comparación,
+todos los modelos se ejecutan en el mismo dispositivo y entorno: los resultados en CPU y en GPU no se mezclan, y
+los de GPU pueden diferir de los de CPU. `metrics.json` guarda el `device` de la corrida. Los escenarios
+sintéticos se generan siempre con `.venv` (el generador solo reproduce el mismo escenario con las versiones
+de `requirements.txt`).
+
+```bash
+py -3.13 -m venv .venv-gpu
+.venv-gpu\Scripts\pip install --extra-index-url https://download.pytorch.org/whl/cu132 -r requirements-gpu.txt
+.venv-gpu\Scripts\pip install -e . --no-deps
+```
+
 ## Uso
 
 Ejecutar las pruebas:

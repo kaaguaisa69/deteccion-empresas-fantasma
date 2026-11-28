@@ -4,6 +4,7 @@ results/runs/
 
 # Entorno virtual y artefactos de Python
 .venv/
+.venv-gpu/
 __pycache__/
 *.egg-info/
 .pytest_cache/
